@@ -1,0 +1,67 @@
+[package]
+name = "orange"
+version = "0.1.0"
+edition = "2021"
+description = "nOrange"
+license = "BSD-3-Clause"
+repository = "https://github.com/CalebCouch/orangeme.git"
+authors = ["Caleb Couch <caleb@orange.me>", "Ella Couch <ella@orange.me>"]
+
+
+[dependencies]
+chrono = { version = "0.4.40", features = ["serde"] }
+image = "0.25.5"
+log = "0.4.27"
+serde = { version = "1.0.219", features = ["derive"] }
+bdk_wallet = "1.2.0"
+secp256k1 = { version = "0.31.0" }
+hex = "0.4.3"
+bdk_esplora = "0.20.1"
+serde_json = "1.0.140"
+ureq = { version = "3.0.11", default-features = true }
+security-framework = "3.2.0"
+objc2-security = { version = "0.3.1", features = ["SecBase"] }
+objc2-core-foundation = "0.3.1"
+reqwest = { version = "0.12.15", features = ["json"] }
+
+pelican_ui = {path = "../pelican_ui" }
+pelican_ui_std = { path = "../pelican_ui_std" }
+bitcoin = {path = "../bitcoin" }
+messages = {path = "../messages" }
+profiles = {path = "../profiles" }
+pollster = "0.4.0"
+dispatch2 = "0.3.0"
+objc2-ui-kit = { version = "0.3.1", features = ["UIGraphicsImageRenderer"] }
+base64 = "0.22.1"
+uuid = { version = "1.17.0", features = ["v4", "serde"] }
+libc = "0.2.172"
+include_dir = "0.7.4"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "sync", "time", "net"] }
+
+[lib]
+name="main"
+crate-type=["staticlib", "cdylib", "rlib"]
+#crate-type=["cdylib"]
+
+####################
+# cargo apk config #
+####################
+
+
+[package.metadata.android]
+package = "com.orange.pkg"
+build_targets = [ "aarch64-linux-android" ]
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.INTERNET"
+
+[package.metadata.android.sdk]
+min_sdk_version = 33
+target_sdk_version = 33
+
+label = "Application Name"
+
+[package.metadata.deb]
+maintainer-scripts = "debian/"
