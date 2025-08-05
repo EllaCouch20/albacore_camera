@@ -69,7 +69,7 @@ impl Service for LensService {
 
     async fn run(&mut self, ctx: &mut ThreadContext<Self::Send, Self::Receive>) -> Result<Option<Duration>, runtime::Error> {
         // println!("RUNNING SERVICE");
-        let cache = &mut LensCache::from_cache(&mut ctx.hardware.cache).await;
+        // let cache = &mut LensCache::from_cache(&mut ctx.hardware.cache).await;
         while let Some((_, request)) = ctx.get_request() {
             match request {
             //     LensRequest::CreateRoom(uuid) => {
