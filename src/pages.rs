@@ -152,15 +152,15 @@ impl OnEvent for CameraSettings {
             if let Some(camera) = self.2.as_mut().unwrap().camera() {
                 println!(" Found Camera ");
                 match setting {
-                    SetCameraSetting::Brightness(p) => camera.update_settings(|settings| settings.brightness = (((p/100.0)*200.0)-100.0) as i16),
-                    SetCameraSetting::Contrast(p) => camera.update_settings(|settings| settings.contrast = ((p/100.0)*2.0)-1.0),
-                    SetCameraSetting::Saturation(p) => camera.update_settings(|settings| settings.saturation = ((p/100.0)*2.0)-1.0),
-                    SetCameraSetting::Gamma(p) => camera.update_settings(|settings| settings.gamma = (0.1+(p/100.0)*(3.0-0.1))),
-                    SetCameraSetting::Exposure(p) => camera.update_settings(|settings| settings.exposure = ((p/100.0)*4.0)-2.0),
-                    SetCameraSetting::Temperature(p) => camera.update_settings(|settings| settings.temperature = 2000.0+(p/100.0)*8000.0),
-                    SetCameraSetting::WhiteBalanceR(p) => camera.update_settings(|settings| settings.white_balance_r = 0.5+(p/100.0)*1.5),
-                    SetCameraSetting::WhiteBalanceG(p) => camera.update_settings(|settings| settings.white_balance_g = 0.5+(p/100.0)*1.5),
-                    SetCameraSetting::WhiteBalanceB(p) => camera.update_settings(|settings| settings.white_balance_b = 0.5+(p/100.0)*1.5),
+                    SetCameraSetting::Brightness(p) => camera.set_brightness((((p/100.0)*200.0)-100.0) as i16),
+                    SetCameraSetting::Contrast(p) => camera.set_contrast(((p/100.0)*2.0)-1.0),
+                    SetCameraSetting::Saturation(p) => camera.set_saturation(((p/100.0)*2.0)-1.0),
+                    SetCameraSetting::Gamma(p) => camera.set_gamma((0.1+(p/100.0)*(3.0-0.1))),
+                    SetCameraSetting::Exposure(p) => camera.set_exposure(((p/100.0)*4.0)-2.0),
+                    SetCameraSetting::Temperature(p) => camera.set_temperature(2000.0+(p/100.0)*8000.0),
+                    SetCameraSetting::WhiteBalanceR(p) => camera.set_white_balance_r(0.5+(p/100.0)*1.5),
+                    SetCameraSetting::WhiteBalanceG(p) => camera.set_white_balance_g(0.5+(p/100.0)*1.5),
+                    SetCameraSetting::WhiteBalanceB(p) => camera.set_white_balance_b(0.5+(p/100.0)*1.5),
                 };
             }
         }
