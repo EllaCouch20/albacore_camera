@@ -15,7 +15,7 @@ use chrono::{Utc, DateTime};
 // use uuid::Uuid;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct MyPhotos(pub Vec<String>);
+pub struct MyCameraRoll(pub Vec<(String, (f32, f32))>);
 
 static PHOTOS: LazyLock<Id> = LazyLock::new(|| Id::hash(&"PhotosV1".to_string()));
 static PHOTO: LazyLock<Id> = LazyLock::new(|| Id::hash(&"PhotoV1".to_string()));
@@ -41,7 +41,7 @@ static PHOTO_PROTOCOL: LazyLock<Protocol> = LazyLock::new(|| {
 pub enum LensRequest {
     // CreateRoom(Uuid),
     // CreateAlbum,
-    SavePhoto(String),
+    SavePhoto(String, (f32, f32)),
     // Share(Id, OrangeName),
 }
 
@@ -59,7 +59,7 @@ impl Services for LensService {
 
 #[async_trait]
 impl Service for LensService {
-    type Send = String;
+    type Send = (String, (f32, f32));
     type Receive = LensRequest;
 
     async fn new(_hardware: &mut hardware::Context) -> Self {
@@ -80,9 +80,9 @@ impl Service for LensService {
                 // LensRequest::CreateAlbum => {
                 //     AirService::create_private(ctx, RecordPath::root(), PHOTOS_PROTOCOL.clone(), cache.albums_idx, PHOTOS_PERMISSIONS, serde_json::to_vec(&*MY_PHOTOS)?).await?;
                 // },
-                LensRequest::SavePhoto(data) => {
+                LensRequest::SavePhoto(data, size) => {
                     println!("Saving photo...");
-                    ctx.callback(data);
+                    ctx.callback((data, size));
                     // let mut x = cache.albums.get(&RecordPath::root().join(*MY_PHOTOS)).unwrap().1;
                     // while let (_, Some(_)) = AirService::create_private(ctx, RecordPath::root().join(*MY_PHOTOS), PHOTO_PROTOCOL.clone(), x, PHOTO_PERMISSIONS, serde_json::to_vec(&data)?).await? {
                     //     x += 1;
@@ -105,9 +105,9 @@ impl Service for LensService {
 
     fn callback(state: &mut State, response: Self::Send) {
         println!("Callback with {:?}", response);
-        let mut photos = state.get::<MyPhotos>().unwrap().0.clone();
+        let mut photos = state.get::<MyCameraRoll>().unwrap().0.clone();
         photos.push(response);
-        state.set(MyPhotos(photos));
+        state.set(MyCameraRoll(photos));
         // let mut rooms = state.get::<Rooms>().0;
         // // if response.2 {state.set(&Name(Some(response.0.clone())));}
         // rooms.insert(response.0, response.1);
@@ -128,7 +128,7 @@ impl Services for LensSync {}
 
 #[async_trait]
 impl Service for LensSync {
-    type Send = Vec<String>;
+    type Send = Vec<(String, (f32, f32))>;
     type Receive = ();
 
     async fn new(hardware: &mut hardware::Context) -> Self {
@@ -173,17 +173,17 @@ impl Service for LensSync {
         // }
         // println!("Done discovering.");
 
-        for (room, (photos, index)) in &mut self.cache.albums {
-            while let (path, Some(_)) = AirService::discover(ctx, room.clone(), *index, vec![PHOTO_PROTOCOL.clone()]).await? {
-                if let Some(path) = path {
-                    if let Ok(data) = serde_json::from_slice(&AirService::read_private(ctx, path).await?.unwrap().0.payload) {
-                        photos.insert(*index as usize, data);
-                        mutated = true;
-                    }
-                }
-                *index += 1;
-            }
-        }
+        // for (room, (photos, index)) in &mut self.cache.albums {
+        //     while let (path, Some(_)) = AirService::discover(ctx, room.clone(), *index, vec![PHOTO_PROTOCOL.clone()]).await? {
+        //         if let Some(path) = path {
+        //             if let Ok(data) = serde_json::from_slice(&AirService::read_private(ctx, path).await?.unwrap().0.payload) {
+        //                 photos.insert(*index as usize, data);
+        //                 mutated = true;
+        //             }
+        //         }
+        //         *index += 1;
+        //     }
+        // }
 
         println!("Done messages.");
         
@@ -191,7 +191,7 @@ impl Service for LensSync {
             self.init = true;
             ctx.callback(self.cache.albums.iter().map(|(_, (data, _))| {
                 data.clone()
-            }).collect::<Vec<Vec<String>>>().into_iter().flatten().collect());
+            }).collect::<Vec<Vec<(String, (f32, f32))>>>().into_iter().flatten().collect());
             println!("Callback done.");
         }
 
@@ -202,14 +202,14 @@ impl Service for LensSync {
     }
 
     fn callback(state: &mut State, response: Self::Send) {
-        state.set(MyPhotos(response))
+        state.set(MyCameraRoll(response))
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct LensCache {
     pub albums_idx: u32,
-    pub albums: BTreeMap<RecordPath, (Vec<String>, u32)>,
+    pub albums: BTreeMap<RecordPath, (Vec<(String, (f32, f32))>, u32)>,
     pub datetime: DateTime<Utc>,
 }
 

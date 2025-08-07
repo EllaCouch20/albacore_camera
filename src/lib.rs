@@ -1,11 +1,9 @@
 use pelican_ui::{include_assets, Theme, Component, Context, Plugins, Plugin, maverick_start, start, Application, PelicanEngine, MaverickOS};
-use pelican_ui::drawable::{Drawable, Component};
+use pelican_ui::drawable::{Color, Drawable, Component};
 use pelican_ui::layout::{Area, SizeRequest, Layout};
 use pelican_ui::events::OnEvent;
 use pelican_ui::runtime::{Services, ServiceList};
 use pelican_ui::hardware::ApplicationSupport;
-use profiles::plugin::ProfilePlugin;
-use profiles::service::{ProfileService};
 use pelican_ui_std::{Stack, Interface};
 
 
@@ -25,7 +23,7 @@ mod plugin;
 use plugin::LensPlugin;
 mod service;
 use service::LensService;
-use service::MyPhotos;
+use service::MyCameraRoll;
 mod components;
 mod events;
 mod pages;
@@ -35,7 +33,6 @@ pub struct MyApp;
 impl Services for MyApp {
     fn services() -> ServiceList {
         let mut services = ServiceList::default();
-        services.insert::<ProfileService>();
         services.insert::<LensService>();
         services
         // ServiceList(BTreeMap::new())
@@ -44,7 +41,7 @@ impl Services for MyApp {
 
 impl Plugins for MyApp {
     fn plugins(ctx: &mut Context) -> Vec<Box<dyn Plugin>> {
-        vec![Box::new(ProfilePlugin::new(ctx)), Box::new(LensPlugin::new(ctx))]
+        vec![Box::new(LensPlugin::new(ctx))]
         // vec![]
     }
 }
@@ -53,9 +50,25 @@ impl Application for MyApp {
     async fn new(ctx: &mut Context) -> Box<dyn Drawable> { 
         ctx.assets.include_assets(include_assets!("./resources"));
         let mut theme = Theme::default(&mut ctx.assets);
-        theme.colors.button.secondary_default.background = theme.colors.background.primary;
-        theme.colors.button.secondary_hover.background = theme.colors.outline.secondary;
-        theme.brand.illustrations.insert(ctx, "test", "images/darkglass_logo.png");
+
+        theme.colors.background.primary = Color::from_hex("000000", 210); 
+        theme.colors.brand.primary = Color::from_hex("131EFF", 255);
+        theme.colors.button.primary_default.background = Color::from_hex("131EFF", 255);
+        theme.colors.button.primary_hover.background = Color::from_hex("0914E9", 255);
+        theme.colors.button.primary_selected.background = Color::from_hex("0914E9", 255);
+        theme.colors.button.primary_pressed.background = Color::from_hex("0914E9", 255);
+
+        let icons = vec![
+            "brightness", "camera_roll", "contrast", 
+            "exposure", "gamma", "saturation",
+            "share", "sliders", "temperature",
+            "white_balance_r", "white_balance_g", 
+            "white_balance_b", "camera_shutter",
+        ];
+
+        icons.into_iter().for_each(|p| theme.icons.insert(ctx, p));
+
+        theme.brand.illustrations.insert(ctx, "blank", "images/blank.png");
         ctx.theme = theme;
         App::new(ctx) 
     }
@@ -70,17 +83,17 @@ impl App {
     pub fn new(ctx: &mut Context) -> Box<Self> {
         let storage_path = ApplicationSupport::get().unwrap();
         std::fs::create_dir_all(&storage_path).unwrap();
-        let path = storage_path.join("photos.json");
+        let path = storage_path.join("my_camera_roll.json");
         let photos = Self::load_photos(&path);
  
-        ctx.state().set(MyPhotos(photos));
+        ctx.state().set(MyCameraRoll(photos));
 
         let home = CameraHome::new(ctx, None);
         let interface = Interface::new(ctx, Box::new(home), None, None);
         Box::new(App(Stack::default(), interface))
     }
 
-    pub fn save_photos<P: AsRef<Path>>(path: P, photos: &Vec<String>) {
+    pub fn save_photos<P: AsRef<Path>>(path: P, photos: &Vec<(String, (f32, f32))>) {
         let path = path.as_ref();
         let bytes = serde_json::to_vec_pretty(photos).expect("Could not vec to pretty");
 
@@ -90,15 +103,15 @@ impl App {
         tmp.persist(path).expect("Colud not persist");
     }
 
-    pub fn load_photos<P: AsRef<Path>>(path: P) -> Vec<String> {
+    pub fn load_photos<P: AsRef<Path>>(path: P) -> Vec<(String, (f32, f32))> {
         let path = path.as_ref();
         if !path.exists() {
             return Vec::new();
         }
         let file = File::open(path).expect("Could not open path");
         let reader = BufReader::new(file);
-        let contracts = serde_json::from_reader(reader).expect("Could not read from reader");
-        contracts
+        let photos = serde_json::from_reader(reader).expect("Could not read from reader");
+        photos
     }
 }
 

@@ -1,17 +1,15 @@
 [package]
-name = "orange"
+name = "albacore"
 version = "0.1.0"
 edition = "2021"
 description = "nOrange"
 license = "BSD-3-Clause"
-repository = "https://github.com/CalebCouch/orangeme.git"
-authors = ["Caleb Couch <caleb@orange.me>", "Ella Couch <ella@orange.me>"]
+repository = "https://github.com/EllaCouch20/albacore.git"
+authors = ["Ella Couch <ella@orange.me>", "Eli Couch <eli@orange.me>"]
 
 [dependencies]
 pelican_ui = {path = "../pelican_ui" }
 pelican_ui_std = {path = "../pelican_ui_std" }
-bitcoin = {path = "../bitcoin" }
-profiles = {path = "../profiles" }
 serde = "1.0.219"
 serde_json = "1.0.140"
 uuid = { version = "1.17.0", features = ["v4", "serde"] }
