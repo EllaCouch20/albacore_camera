@@ -66,7 +66,7 @@ impl OnEvent for ShutterButton {
 }
 
 #[derive(Debug, Component)]
-pub struct CameraRollButton(Stack, Image, Bin<Stack, RoundedRectangle>, #[skip] usize);
+pub struct CameraRollButton(Stack, Image, Bin<Stack, RoundedRectangle>, #[skip] usize, #[skip] u8, #[skip] u8);
 
 impl CameraRollButton {
     pub fn new(ctx: &mut Context, i: usize) -> Self {
@@ -76,12 +76,21 @@ impl CameraRollButton {
         let image = photos.last().map(|(p, _)| EncodedImage::decode(ctx, &p)).unwrap_or(blank);
         let image = Image{shape: ShapeType::RoundedRectangle(0.0, (48.0, 48.0), 8.0), image, color: None};
         let layout = Stack(Offset::Center, Offset::Center, Size::Static(48.0), Size::Static(48.0), Padding::default());
-        CameraRollButton(Stack::default(), image, Bin(layout, RoundedRectangle::new(1.0, 8.0, color)), i)
+        let len = ctx.state().get_or_default::<MyCameraRoll>().0.len();
+        CameraRollButton(Stack::default(), image, Bin(layout, RoundedRectangle::new(1.0, 8.0, color)), i, len as u8, 0)
     }
 
     pub fn update(&mut self, ctx: &mut Context) {
-        let photos = ctx.state().get_or_default::<MyCameraRoll>().0.clone();
-        photos.last().map(|(p, _)| self.1.image = EncodedImage::decode(ctx, &p));
+        if self.5 != self.4 { 
+            println!("WAS UN EVEN");
+            if let Some(p) = ctx.state().get_or_default::<MyCameraRoll>().0.clone().last() {
+                let image = p.0.clone();
+                self.1.image = EncodedImage::decode(ctx, &image);
+                self.4 += 1;
+                return;
+            }
+        }
+        println!("WAS EVEN");
     }
 }
 
@@ -89,6 +98,10 @@ impl OnEvent for CameraRollButton {
     fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
         if let Some(MouseEvent { state: MouseState::Pressed, position: Some(_) }) = event.downcast_ref::<MouseEvent>() {
             ctx.trigger_event(NavigateEvent(self.3))
+        } else if event.downcast_ref::<TickEvent>().is_some() {
+            self.update(ctx);
+        } else if event.downcast_ref::<TakePhotoEvent>().is_some() {
+            self.5 += 1;
         }
         true
     }
@@ -120,7 +133,6 @@ impl EditSettingsBumper {
     }
 
     pub fn set_slider_action(&mut self, settings: ImageSettings, ctx: &mut Context, i: String) {
-        println!("UDPATING SLIDER ACTION");
         let action = SettingsValue::event(i.to_string());
         *self.3.slider() = Slider::new(ctx, None, None, action);
     }
@@ -182,7 +194,7 @@ pub struct SettingsOptionsContent(Row, Vec<SettingsButton>);
 impl SettingsOptionsContent {
     pub fn new(ctx: &mut Context) -> Self {
         let color = ctx.theme.colors.text.heading;
-        let icons = vec!["brightness", "contrast", "exposure", "gamma", "saturation", "temperature", "white_balance_r", "white_balance_g", "white_balance_b"];
+        let icons = vec!["brightness", "white_balance_r", "white_balance_g", "white_balance_b"];
         let children = icons.into_iter().enumerate().map(|(idx, icon)| {
             let closure = move |ctx: &mut Context| {
                 ctx.trigger_event(SettingsSelect(icon.to_string()));

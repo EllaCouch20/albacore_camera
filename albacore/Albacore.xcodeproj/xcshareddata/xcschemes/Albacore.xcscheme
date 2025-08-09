@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "3BDB8152E4962373181B4FE5"
-               BuildableName = "Dark Glass.app"
+               BuildableName = "Albacore.app"
                BlueprintName = "Albacore"
                ReferencedContainer = "container:Albacore.xcodeproj">
             </BuildableReference>
@@ -45,7 +45,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3BDB8152E4962373181B4FE5"
-            BuildableName = "Dark Glass.app"
+            BuildableName = "Albacore.app"
             BlueprintName = "Albacore"
             ReferencedContainer = "container:Albacore.xcodeproj">
          </BuildableReference>
@@ -69,7 +69,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3BDB8152E4962373181B4FE5"
-            BuildableName = "Dark Glass.app"
+            BuildableName = "Albacore.app"
             BlueprintName = "Albacore"
             ReferencedContainer = "container:Albacore.xcodeproj">
          </BuildableReference>

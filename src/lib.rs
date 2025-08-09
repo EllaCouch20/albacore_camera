@@ -1,7 +1,7 @@
 use pelican_ui::{include_assets, Theme, Component, Context, Plugins, Plugin, maverick_start, start, Application, PelicanEngine, MaverickOS};
 use pelican_ui::drawable::{Color, Drawable, Component};
 use pelican_ui::layout::{Area, SizeRequest, Layout};
-use pelican_ui::events::OnEvent;
+use pelican_ui::events::{OnEvent, Event};
 use pelican_ui::runtime::{Services, ServiceList};
 use pelican_ui::hardware::ApplicationSupport;
 use pelican_ui_std::{Stack, Interface};
@@ -26,6 +26,7 @@ use service::LensService;
 use service::MyCameraRoll;
 mod components;
 mod events;
+use events::TakePhotoEvent;
 mod pages;
 use pages::CameraHome;
 
@@ -77,7 +78,7 @@ impl Application for MyApp {
 start!(MyApp);
 
 #[derive(Debug, Component)]
-pub struct App(Stack, Interface);
+pub struct App(Stack, Interface, #[skip] bool);
 
 impl App {
     pub fn new(ctx: &mut Context) -> Box<Self> {
@@ -90,17 +91,7 @@ impl App {
 
         let home = CameraHome::new(ctx, None);
         let interface = Interface::new(ctx, Box::new(home), None, None);
-        Box::new(App(Stack::default(), interface))
-    }
-
-    pub fn save_photos<P: AsRef<Path>>(path: P, photos: &Vec<(String, (f32, f32))>) {
-        let path = path.as_ref();
-        let bytes = serde_json::to_vec_pretty(photos).expect("Could not vec to pretty");
-
-        let mut tmp = NamedTempFile::new_in(path.parent().unwrap_or_else(|| Path::new("."))).expect("Could not write temp");
-        tmp.write_all(&bytes).expect("Could not write all");
-        tmp.flush().expect("Could not flush");
-        tmp.persist(path).expect("Colud not persist");
+        Box::new(App(Stack::default(), interface, false))
     }
 
     pub fn load_photos<P: AsRef<Path>>(path: P) -> Vec<(String, (f32, f32))> {
@@ -115,4 +106,19 @@ impl App {
     }
 }
 
-impl OnEvent for App {}
+impl OnEvent for App {
+    fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
+        if event.downcast_ref::<TakePhotoEvent>().is_some() {
+            let storage_path = ApplicationSupport::get().unwrap();
+            std::fs::create_dir_all(&storage_path).unwrap();
+            let path = storage_path.join("my_camera_roll.json");
+            let photos = ctx.state().get_or_default::<MyCameraRoll>().0.clone();
+            let bytes = serde_json::to_vec_pretty(&photos).expect("Could not vec to pretty");
+            let mut tmp = NamedTempFile::new_in(path.parent().unwrap_or_else(|| Path::new("."))).expect("Could not write temp");
+            tmp.write_all(&bytes).expect("Could not write all");
+            tmp.flush().expect("Could not flush");
+            tmp.persist(path).expect("Colud not persist");
+        }
+        true
+    }
+}

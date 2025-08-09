@@ -14,7 +14,7 @@ impl Plugin for LensPlugin {
 }
 impl LensPlugin {
     pub fn request(&mut self, request: LensRequest) {
-        println!("SENDING REQUEST {:?}", request);
+        // println!("SENDING REQUEST {:?}", request);
         self.0.send::<LensService>(&request)
     }
 

@@ -104,7 +104,6 @@ impl Service for LensService {
     }
 
     fn callback(state: &mut State, response: Self::Send) {
-        println!("Callback with {:?}", response);
         let mut photos = state.get::<MyCameraRoll>().unwrap().0.clone();
         photos.push(response);
         state.set(MyCameraRoll(photos));
@@ -140,7 +139,6 @@ impl Service for LensSync {
 
     async fn run(&mut self, ctx: &mut ThreadContext<Self::Send, Self::Receive>) -> Result<Option<Duration>, runtime::Error> {
         let mut mutated = false;
-        println!("running {:?}", self.cache.albums_idx);
 
         // for (_, path) in AirService::receive(ctx, self.cache.datetime).await?.into_iter() {
         //     // let uuid: Uuid = serde_json::from_slice(&AirService::read_private(ctx, path.clone()).await?.unwrap().0.payload).unwrap();
@@ -185,24 +183,24 @@ impl Service for LensSync {
         //     }
         // }
 
-        println!("Done messages.");
+        // println!("Done messages.");
         
-        if mutated || !self.init {
-            self.init = true;
-            ctx.callback(self.cache.albums.iter().map(|(_, (data, _))| {
-                data.clone()
-            }).collect::<Vec<Vec<(String, (f32, f32))>>>().into_iter().flatten().collect());
-            println!("Callback done.");
-        }
+        // if mutated || !self.init {
+        //     self.init = true;
+        //     ctx.callback(self.cache.albums.iter().map(|(_, (data, _))| {
+        //         data.clone()
+        //     }).collect::<Vec<Vec<(String, (f32, f32))>>>().into_iter().flatten().collect());
+        //     println!("Callback done.");
+        // }
 
-        // println!("Done updating.");
-        self.cache.cache(&mut ctx.hardware.cache).await;
+        // // println!("Done updating.");
+        // self.cache.cache(&mut ctx.hardware.cache).await;
         // println!("DONE");
         Ok(Some(Duration::from_secs(1)))
     }
 
     fn callback(state: &mut State, response: Self::Send) {
-        state.set(MyCameraRoll(response))
+        // state.set(MyCameraRoll(response))
     }
 }
 

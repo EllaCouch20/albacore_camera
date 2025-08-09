@@ -88,7 +88,6 @@ impl OnEvent for CameraHome {
             }
         } else if let Some(setting) = event.downcast_ref::<SetCameraSetting>() {
             if let Some(camera) = self.1.content().find::<CameraView>().as_mut().unwrap().camera().as_mut().unwrap().camera() {
-                println!("UPDATING CAMERA SETTINGS>>>>");
                 match setting {
                     SetCameraSetting::Brightness(p) => camera.set_brightness((((p/100.0)*200.0)-100.0) as i16),
                     // SetCameraSetting::Contrast(p) => camera.set_contrast(((p/100.0)*2.0)-1.0),
@@ -124,7 +123,6 @@ impl SettingsValue {
     }
 
     pub fn event(i: String) -> Box<dyn FnMut(&mut Context, f32)> {
-        println!("GETTING NEW EVENT HANDLER: {}", i);
         match i.as_str() {
             "brightness" => Box::new(|ctx: &mut Context, p: f32| {
                 println!("Brightness action: {}", p);
