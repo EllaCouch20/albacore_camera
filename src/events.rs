@@ -55,11 +55,11 @@ impl Event for SettingsSelect {
 #[derive(Debug, Clone)]
 pub enum SetCameraSetting {
     Brightness(f32),
-    Contrast(f32),
-    Saturation(f32),
-    Gamma(f32),
-    Exposure(f32),
-    Temperature(f32),
+    // Contrast(f32),
+    // Saturation(f32),
+    // Gamma(f32),
+    // Exposure(f32),
+    // Temperature(f32),
     WhiteBalanceR(f32),
     WhiteBalanceG(f32),
     WhiteBalanceB(f32),
