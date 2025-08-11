@@ -59,6 +59,7 @@ impl ShutterButton {
 impl OnEvent for ShutterButton {
     fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
         if let Some(MouseEvent { state: MouseState::Pressed, position: Some(_) }) = event.downcast_ref::<MouseEvent>() {
+            ctx.hardware.haptic();
             ctx.trigger_event(TakePhotoEvent);
         }
         true
@@ -81,16 +82,13 @@ impl CameraRollButton {
     }
 
     pub fn update(&mut self, ctx: &mut Context) {
-        if self.5 != self.4 { 
-            println!("WAS UN EVEN");
+        while self.5 > self.4 { 
             if let Some(p) = ctx.state().get_or_default::<MyCameraRoll>().0.clone().last() {
                 let image = p.0.clone();
                 self.1.image = EncodedImage::decode(ctx, &image);
-                self.4 += 1;
-                return;
             }
+            self.4 += 1;
         }
-        println!("WAS EVEN");
     }
 }
 
@@ -118,10 +116,8 @@ impl EditSettingsBumper {
         let options = SettingsOptions::new(ctx);
         let action = SettingsValue::event("brightness".to_string());
         let edit_slider = EditSlider::new(ctx, action);
-        // edit_slider.set_value(SettingsValue::get(settings, i));
         let layout = Column::new(24.0, Offset::Center, Size::Fit, Padding::default());
         EditSettingsBumper(layout, text, options, edit_slider)
-        // SettingsOptions::new(ctx)
     }
 
     pub fn set_slider_value(&mut self, val: f32) {
@@ -132,47 +128,20 @@ impl EditSettingsBumper {
         self.1.text().spans[0].text = text.replace('_', " ").split_whitespace().map(|w| w[..1].to_uppercase() + &w[1..]).collect::<Vec<_>>().join(" ");
     }
 
-    pub fn set_slider_action(&mut self, settings: ImageSettings, ctx: &mut Context, i: String) {
+    pub fn set_slider(&mut self, settings: ImageSettings, ctx: &mut Context, i: String) {
         let action = SettingsValue::event(i.to_string());
         *self.3.slider() = Slider::new(ctx, None, None, action);
     }
 }
-
-
-
-// #[derive(Debug, Component)]
-// pub struct SettingsOptions(Scroll, SettingsOptionsContent);
-// impl SettingsOptions {
-//     pub fn new(ctx: &mut Context) -> Self {
-//         let content = SettingsOptionsContent::new(ctx);
-//         SettingsOptions(Scroll::horizontal(), content)
-//     }
-// }
-
-// impl OnEvent for SettingsOptions {
-//     fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
-//         if let Some(MouseEvent { state: MouseState::Scroll(x, _), position: Some(_) }) = event.downcast_ref::<MouseEvent>() {
-//             println!("SCROLLED {:?}", x);
-//             self.0.adjust_scroll(*x);
-//         }
-//         true
-//     }
-// }
-
 
 #[derive(Debug, Component)]
 pub struct SettingsOptions(Scroll, SettingsOptionsContent);
 
 impl SettingsOptions {
     pub fn new(ctx: &mut Context) -> Self {
-        // let max = if crate::config::IS_WEB {1200.0} else {max};
-        // let width = Size::custom(move |_: Vec<(f32, f32)>|(0.0, f32::MAX));
-        let width = Size::custom(move |widths| (0.0, f32::MAX));  // unbounded width
-        let height = Size::custom(move |heights| (heights[0].0.min(48.0), 48.0));  // fixed height
-
-        // let anchor = if offset == Offset::End { ScrollAnchor::End } else { ScrollAnchor::Start };
+        let width = Size::custom(move |widths| (0.0, f32::MAX));
+        let height = Size::custom(move |heights| (heights[0].0.min(48.0), 48.0));
         let layout = Scroll::horizontal(Offset::Start, Offset::Start, width, height, Padding::default(), ScrollAnchor::Start);
-        // if offset == Offset::End { layout.set_scroll(f32::MAX); }
         SettingsOptions(layout, SettingsOptionsContent::new(ctx)) 
     }
 }
@@ -193,14 +162,11 @@ pub struct SettingsOptionsContent(Row, Vec<SettingsButton>);
 
 impl SettingsOptionsContent {
     pub fn new(ctx: &mut Context) -> Self {
-        let color = ctx.theme.colors.text.heading;
         let icons = vec!["brightness", "white_balance_r", "white_balance_g", "white_balance_b"];
         let children = icons.into_iter().enumerate().map(|(idx, icon)| {
             let closure = move |ctx: &mut Context| {
                 ctx.trigger_event(SettingsSelect(icon.to_string()));
-                // ctx.trigger_event(NavigatorEvent(idx));
             };
-
             let button = IconButtonPreset::new(ctx, icon, 0 == idx, closure);
             SettingsButton::new(icon.to_string(), button)
         }).collect::<Vec<_>>();
@@ -213,8 +179,8 @@ impl OnEvent for SettingsOptionsContent {
         if let Some(SettingsSelect(id)) = event.downcast_ref::<SettingsSelect>() {
             self.1.iter_mut().for_each(|button| {
                 let status = if button.id() == *id {ButtonState::Selected} else {ButtonState::Default};
-                *button.icon_button().status() = status;
-                button.icon_button().color(ctx, status);
+                *button.inner().status() = status;
+                button.inner().color(ctx, status);
             });
         }
         true
@@ -222,30 +188,17 @@ impl OnEvent for SettingsOptionsContent {
 }
 
 #[derive(Debug, Component)]
-pub struct IconBlanks(Row, Bin<Stack, Rectangle>, Bin<Stack, Rectangle>);
-impl OnEvent for IconBlanks {}
-impl IconBlanks {
-    pub fn new(ctx: &mut Context) -> Self {
-        let layouta = Stack(Offset::Center, Offset::Center, Size::Static(48.0), Size::Static(48.0), Padding::default());
-        let layoutb = Stack(Offset::Center, Offset::Center, Size::Static(48.0), Size::Static(48.0), Padding::default());
-        let color = ctx.theme.colors.shades.transparent;
-        IconBlanks(Row::center(24.0), Bin(layouta, Rectangle::new(color)), Bin(layoutb, Rectangle::new(color)))
-    }
-}
-
-#[derive(Debug, Component)]
 pub struct EditSlider(Row, Button, Slider);
 impl OnEvent for EditSlider {}
+
 impl EditSlider {
     pub fn new(ctx: &mut Context, on_click: Box<dyn FnMut(&mut Context, f32)>) -> Self {
         let button = DoneButton::new(ctx, |ctx: &mut Context| ctx.trigger_event(OpenSettingsEvent::Close));
         let slider = Slider::new(ctx, None, None, on_click);
-        // Slider::new(ctx, "White Balance R", None, |ctx: &mut Context, p: f32| ctx.trigger_event(SetCameraSetting::WhiteBalanceR(p)));
         EditSlider(Row::center(24.0), button, slider)
     }
-    pub fn set_value(&mut self, val: f32) {
-        self.2.set_value(val)
-    }
+
+    pub fn set_value(&mut self, val: f32) {self.2.set_value(val)}
     pub fn slider(&mut self) -> &mut Slider {&mut self.2}
 }
 
@@ -258,36 +211,23 @@ impl PhotoWrap {
     pub fn new(ctx: &mut Context) -> Self {
         let text_size = ctx.theme.fonts.size.md;
         let my_images: Vec<(String, (f32, f32))> = ctx.state().get_or_default::<MyCameraRoll>().0.clone();
-        let help_text = (my_images.is_empty()).then_some(
-            ExpandableText::new(ctx, "Your camera roll is empty.\nTake a photo to get started.", TextStyle::Primary, text_size, Align::Center, None)
-        );
-        let layout = if my_images.is_empty() {
-            Box::new(Stack::center()) as Box<dyn Layout>
-        } else {
-            Box::new(Wrap::new(8.0, 8.0)) as Box<dyn Layout>
+        let help_text = my_images.is_empty().then_some(ExpandableText::new(
+            ctx, "Your camera roll is empty.\nTake a photo to get started.", 
+            TextStyle::Primary, text_size, Align::Center, None
+        ));
+
+        let layout = match my_images.is_empty() {
+            true => Box::new(Stack::center()) as Box<dyn Layout>,
+            false => Box::new(Wrap::new(8.0, 8.0)) as Box<dyn Layout>
         };
-        let my_photos = my_images.into_iter().map(|(i, s)| {
-            let image = EncodedImage::decode(ctx, &i);
-            ImageButton::new(image, s)
-        }).collect();
+
+        let my_photos = my_images.into_iter().map(|(i, s)| 
+            ImageButton::new(EncodedImage::decode(ctx, &i), s)
+        ).collect();
+
         PhotoWrap(layout, my_photos, help_text)
     }
 }
-
-// #[derive(Debug, Component)]
-// pub struct CameraButton(Stack, Option<IconButton>);
-// impl OnEvent for CameraButton {}
-
-// impl CameraButton {
-//     pub fn new(icon: Option<IconButton>, expand: bool) -> Self {
-//         let size = if !expand {Size::Fit} else {Size::fill()};
-//         CameraButton(
-//             Stack(Offset::Center, Offset::Center, size, Size::Fit, Padding::default()),
-//             icon
-//         )
-//     }
-// }
-
 
 #[derive(Debug, Component)]
 pub struct ImageButton(Stack, Image, #[skip] (f32, f32));
@@ -310,12 +250,7 @@ impl ImageButton {
 }
 
 #[derive(Debug, Component)]
-pub struct AlbacoreCamera(
-    Stack, 
-    ExpandableImage, 
-    #[skip] Option<Camera>,
-    #[skip] Option<RgbaImage>,
-);
+pub struct AlbacoreCamera(Stack, ExpandableImage, #[skip] Option<Camera>, #[skip] Option<RgbaImage>);
 
 impl AlbacoreCamera {
     pub fn new(ctx: &mut Context) -> Self {
@@ -335,7 +270,6 @@ impl OnEvent for AlbacoreCamera {
         if let Some(TickEvent) = event.downcast_ref::<TickEvent>() {
             if let Some(ref mut camera) = self.2 {
                 if let Some(raw_frame) = camera.get_frame() {
-                    // println!("Received frame: {}x{}", raw_frame.width(), raw_frame.height());
                     self.3 = Some(raw_frame.clone());
                     let image = ctx.assets.add_image(raw_frame);
                     self.1.image().image = image;
@@ -346,7 +280,6 @@ impl OnEvent for AlbacoreCamera {
                 let mut guard = ctx.get::<LensPlugin>();
                 let plugin = guard.get().0;
                 let image = EncodedImage::encode_rgba(rgba.clone());
-                println!("GOT IMAGE. MAKING REQUEST");
                 let size = self.1.image().image.size();
                 plugin.request(LensRequest::SavePhoto(image, (size.0 as f32, size.1 as f32)));
             }
@@ -354,16 +287,6 @@ impl OnEvent for AlbacoreCamera {
         true
     }
 }
-
-// self.brightness = self.brightness.clamp(-100, 100);
-// self.contrast = self.contrast.clamp(-1.0, 1.0);
-// self.saturation = self.saturation.clamp(-1.0, 1.0);
-// self.gamma = self.gamma.clamp(0.1, 3.0);
-// self.white_balance_r = self.white_balance_r.clamp(0.5, 2.0);
-// self.white_balance_g = self.white_balance_g.clamp(0.5, 2.0);
-// self.white_balance_b = self.white_balance_b.clamp(0.5, 2.0);
-// self.exposure = self.exposure.clamp(-2.0, 2.0);
-// self.temperature = self.temperature.clamp(2000.0, 10000.0);
 
 #[derive(Debug, Component)]
 pub struct SettingsButton(Stack, IconButton, #[skip] String);
@@ -378,7 +301,7 @@ impl SettingsButton {
         self.2.clone()
     }
 
-    pub fn icon_button(&mut self) -> &mut IconButton {
+    pub fn inner(&mut self) -> &mut IconButton {
         &mut self.1
     }
 }
