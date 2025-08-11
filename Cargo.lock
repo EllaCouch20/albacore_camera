@@ -63,7 +63,9 @@ dependencies = [
 
 [[package]]
 name = "air"
-version = "0.2.4"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f8a1c2c062d21e370cfb644178f35e6ff554f9d5981b88cb5dd6aa43d97cd79"
 dependencies = [
  "async-trait",
  "chrono",
@@ -901,9 +903,9 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 
 [[package]]
 name = "dyn-clone"
-version = "1.0.19"
+version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c7a8fb8a9fbf66c1f703fe16184d10ca0ee9d23be5b4436400408ba54a95005"
+checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "easy_secp256k1"
@@ -1898,7 +1900,9 @@ dependencies = [
 
 [[package]]
 name = "maverick_os"
-version = "0.1.5"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbbfc701ec0433acfca2f7c2b31263ca66b6a196278efc817cd170287f2655d1"
 dependencies = [
  "air",
  "android-activity",
@@ -2837,7 +2841,9 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pelican_ui"
-version = "0.1.5"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c80f908bae622d1a886b26ce4882d3a6b678bfbdc5c9bca0ca56d86da38269c1"
 dependencies = [
  "downcast-rs 2.0.1",
  "image 0.25.6",
@@ -2851,7 +2857,9 @@ dependencies = [
 
 [[package]]
 name = "pelican_ui_proc"
-version = "0.1.0"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4b7653eee7e4a68f7b7d1e239771e2f094f4f07dab025736369b8c6490e6eab"
 dependencies = [
  "proc-macro2 1.0.95",
  "quote 1.0.40",
@@ -2860,7 +2868,9 @@ dependencies = [
 
 [[package]]
 name = "pelican_ui_std"
-version = "0.1.2"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ef2a4571ba349203a5c1f254cc586ceb82b1d169af8ffdef439a52275562b2f"
 dependencies = [
  "base64",
  "chrono",
@@ -4551,7 +4561,9 @@ dependencies = [
 
 [[package]]
 name = "wgpu_canvas"
-version = "4.0.6"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb0c2da43105f97f4332a9c2d40047bc56dcb506358ec1e7fee6ec6c66b4be59"
 dependencies = [
  "bytemuck",
  "fast_image_resize",
