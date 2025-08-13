@@ -110,12 +110,13 @@ pub struct EditSettingsBumper(Column, Text, SettingsOptions, EditSlider);
 impl OnEvent for EditSettingsBumper {}
 
 impl EditSettingsBumper {
-    pub fn new(ctx: &mut Context) -> Self {
+    pub fn new(ctx: &mut Context, settings: ImageSettings) -> Self {
         let text_size = ctx.theme.fonts.size.h5;
         let text = Text::new(ctx, "Brightness", TextStyle::Heading, text_size, Align::Center);
         let options = SettingsOptions::new(ctx);
         let action = SettingsValue::event("brightness".to_string());
-        let edit_slider = EditSlider::new(ctx, action);
+        let value = SettingsValue::get(settings, "brightness".to_string());
+        let edit_slider = EditSlider::new(ctx, value, action);
         let layout = Column::new(24.0, Offset::Center, Size::Fit, Padding::default());
         EditSettingsBumper(layout, text, options, edit_slider)
     }
@@ -130,7 +131,7 @@ impl EditSettingsBumper {
 
     pub fn set_slider(&mut self, settings: ImageSettings, ctx: &mut Context, i: String) {
         let action = SettingsValue::event(i.to_string());
-        *self.3.slider() = Slider::new(ctx, None, None, action);
+        *self.3.slider() = Slider::new(ctx, 50.0, None, None, action);
     }
 }
 
@@ -192,16 +193,15 @@ pub struct EditSlider(Row, Button, Slider);
 impl OnEvent for EditSlider {}
 
 impl EditSlider {
-    pub fn new(ctx: &mut Context, on_click: Box<dyn FnMut(&mut Context, f32)>) -> Self {
+    pub fn new(ctx: &mut Context, start: f32, on_click: Box<dyn FnMut(&mut Context, f32)>) -> Self {
         let button = DoneButton::new(ctx, |ctx: &mut Context| ctx.trigger_event(OpenSettingsEvent::Close));
-        let slider = Slider::new(ctx, None, None, on_click);
+        let slider = Slider::new(ctx, start, None, None, on_click);
         EditSlider(Row::center(24.0), button, slider)
     }
 
     pub fn set_value(&mut self, val: f32) {self.2.set_value(val)}
     pub fn slider(&mut self) -> &mut Slider {&mut self.2}
 }
-
 
 #[derive(Debug, Component)]
 pub struct PhotoWrap(Box<dyn Layout>, Vec<ImageButton>, Option<ExpandableText>);
@@ -222,7 +222,7 @@ impl PhotoWrap {
         };
 
         let my_photos = my_images.into_iter().map(|(i, s)| 
-            ImageButton::new(EncodedImage::decode(ctx, &i), s)
+            ImageButton::new(ctx, i, s)
         ).collect();
 
         PhotoWrap(layout, my_photos, help_text)
@@ -230,12 +230,12 @@ impl PhotoWrap {
 }
 
 #[derive(Debug, Component)]
-pub struct ImageButton(Stack, Image, #[skip] (f32, f32));
+pub struct ImageButton(Stack, ExpandableImage, #[skip] String, #[skip] (f32, f32));
 impl OnEvent for ImageButton {
     fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
         if let Some(MouseEvent{state: MouseState::Pressed, position: Some(_)}) = event.downcast_ref::<MouseEvent>() {
             ctx.hardware.haptic();
-            ctx.trigger_event(SelectImageEvent(self.1.clone(), self.2));
+            ctx.trigger_event(SelectImageEvent(self.2.to_string(), self.3));
             ctx.trigger_event(NavigateEvent(1));
         }
         true
@@ -243,9 +243,12 @@ impl OnEvent for ImageButton {
 }
 
 impl ImageButton {
-    pub fn new(image: resources::Image, size: (f32, f32)) -> Self {
-        let cropped = Image{shape: ShapeType::RoundedRectangle(0.0, (64.0, 64.0), 8.0), image, color: None};
-        ImageButton(Stack::default(), cropped, size)
+    pub fn new(ctx: &mut Context, i: String, size: (f32, f32)) -> Self {
+        let image = EncodedImage::decode(ctx, &i.clone());
+        ImageButton(
+            Stack(Offset::Center, Offset::Center, Size::Static(64.0), Size::Static(64.0), Padding::default()), 
+            ExpandableImage::new(image, None), i.to_string(), size
+        )
     }
 }
 
@@ -347,3 +350,4 @@ impl IconButtonPreset {
         )
     }
 }
+

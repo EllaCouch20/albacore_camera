@@ -12,7 +12,7 @@ use pelican_ui_std::{
     Size, Offset, Padding,
     Header, Column, NavigateEvent,
     Page, Content, Slider, Bumper,
-    Text, TextStyle, Brand
+    Text, TextStyle, Brand, EncodedImage,
 };
 
 use crate::events::SetCameraSetting;
@@ -39,33 +39,47 @@ impl CameraHome {
         ctx.theme.layout.bumper_max = f32::MAX;
 
         let color = ctx.theme.colors.background.primary;
-        let camera = camera.unwrap_or(AlbacoreCamera::new(ctx));
+        let mut camera = camera.unwrap_or(AlbacoreCamera::new(ctx));
+        let settings = camera.camera().as_ref().unwrap().get_settings().unwrap().clone();
         let view = CameraView::new(camera, CameraBumper::new(ctx, 0));
         let text_size = ctx.theme.fonts.size.h5;
         let text = Text::new(ctx, "Brightness", TextStyle::Heading, text_size, Align::Center);
-        let bumper = EditSettingsBumper::new(ctx);
+        let bumper = EditSettingsBumper::new(ctx, settings);
         let content = Content::new(ctx, Offset::Start, vec![Box::new(view)]);
         CameraHome(Stack::default(), Page::new(None, content, None), None)
+    }
+
+    fn settings(&mut self) -> Option<ImageSettings> {
+        if let Some(view) = &mut self.1.content().find::<CameraView>() {
+            let camera = view.camera().as_mut().unwrap().camera().as_mut().unwrap();
+            return Some(camera.get_settings().unwrap().clone());
+        }
+        None
+    }
+
+    fn settings_bumper(&mut self) -> Option<&mut EditSettingsBumper> {
+        if let Some(view) = self.1.content().find::<CameraView>() {
+            return view.bumper().find::<EditSettingsBumper>();
+        }
+        None
     }
 }
 
 impl OnEvent for CameraHome {
     fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
         if event.downcast_ref::<TickEvent>().is_some() {
-            if let Some(i) = &self.2 {
-                if let Some(view) = &mut self.1.content().find::<CameraView>() {
-                    let camera = view.camera().as_mut().unwrap().camera().as_mut().unwrap();
-                    let settings = camera.get_settings().unwrap().clone();
-                    if let Some(crb) = view.bumper().find::<EditSettingsBumper>() {
-                        crb.set_slider_value(SettingsValue::get(settings, i.to_string()));
-                        self.2 = None;
-                    }
+            if let Some(i) = self.2.clone() {
+                let settings = self.settings().unwrap();
+                if let Some(crb) = self.settings_bumper() {
+                    crb.set_slider_value(SettingsValue::get(settings, i.to_string()));
+                    self.2 = None;
                 }
             }
         } else if let Some(s) = event.downcast_ref::<OpenSettingsEvent>() {
             match s {
                 OpenSettingsEvent::Open => {
-                    *self.1.content().find::<CameraView>().unwrap().bumper().items() = vec![Box::new(EditSettingsBumper::new(ctx))]
+                    let settings = self.settings().unwrap();
+                    *self.1.content().find::<CameraView>().unwrap().bumper().items() = vec![Box::new(EditSettingsBumper::new(ctx, settings))]
                 },
                 OpenSettingsEvent::Close => {
                     *self.1.content().find::<CameraView>().unwrap().bumper().items() = vec![Box::new(CameraBumper::new(ctx, 0))]
@@ -87,11 +101,11 @@ impl OnEvent for CameraHome {
             if let Some(camera) = self.1.content().find::<CameraView>().as_mut().unwrap().camera().as_mut().unwrap().camera() {
                 match setting {
                     SetCameraSetting::Brightness(p) => camera.set_brightness((((p/100.0)*200.0)-100.0) as i16),
-                    // SetCameraSetting::Contrast(p) => camera.set_contrast(((p/100.0)*2.0)-1.0),
-                    // SetCameraSetting::Saturation(p) => camera.set_saturation(((p/100.0)*2.0)-1.0),
-                    // SetCameraSetting::Gamma(p) => camera.set_gamma((0.1+(p/100.0)*(3.0-0.1))),
-                    // SetCameraSetting::Exposure(p) => camera.set_exposure(((p/100.0)*4.0)-2.0),
-                    // SetCameraSetting::Temperature(p) => camera.set_temperature(2000.0+(p/100.0)*8000.0),
+                    SetCameraSetting::Contrast(p) => camera.set_contrast(((p/100.0)*2.0)-1.0),
+                    SetCameraSetting::Saturation(p) => camera.set_saturation(((p/100.0)*2.0)-1.0),
+                    SetCameraSetting::Gamma(p) => camera.set_gamma((0.1+(p/100.0)*(3.0-0.1))),
+                    SetCameraSetting::Exposure(p) => camera.set_exposure(((p/100.0)*4.0)-2.0),
+                    SetCameraSetting::Temperature(p) => camera.set_temperature(2000.0+(p/100.0)*8000.0),
                     SetCameraSetting::WhiteBalanceR(p) => camera.set_white_balance_r(0.5+(p/100.0)*1.5),
                     SetCameraSetting::WhiteBalanceG(p) => camera.set_white_balance_g(0.5+(p/100.0)*1.5),
                     SetCameraSetting::WhiteBalanceB(p) => camera.set_white_balance_b(0.5+(p/100.0)*1.5),
@@ -107,11 +121,11 @@ impl SettingsValue {
     pub fn get(settings: ImageSettings, i: String) -> f32 {
         match i.as_str() {
             "brightness" => ((settings.brightness as f32 + 100.0)/200.0)*100.0,
-            // "saturation" => ((settings.saturation + 1.0)/2.0)*100.0,
-            // "gamma" => ((settings.temperature - 2000.0)/8000.0)*100.0,
-            // "exposure" => ((settings.exposure + 2.0)/4.0)*100.0,
-            // "contrast" => ((settings.contrast + 1.0)/2.0)*100.0,
-            // "temperature" => ((settings.temperature - 2000.0)/8000.0)*100.0,
+            "saturation" => ((settings.saturation + 1.0)/2.0)*100.0,
+            "gamma" => ((settings.temperature - 2000.0)/8000.0)*100.0,
+            "exposure" => ((settings.exposure + 2.0)/4.0)*100.0,
+            "contrast" => ((settings.contrast + 1.0)/2.0)*100.0,
+            "temperature" => ((settings.temperature - 2000.0)/8000.0)*100.0,
             "white_balance_r" => ((settings.white_balance_r - 0.5)/1.5)*100.0,
             "white_balance_g" => ((settings.white_balance_g - 0.5)/1.5)*100.0,
             "white_balance_b" => ((settings.white_balance_b - 0.5)/1.5)*100.0,
@@ -125,26 +139,26 @@ impl SettingsValue {
                 println!("Brightness action: {}", p);
                 ctx.trigger_event(SetCameraSetting::Brightness(p))
             }),
-            // "saturation" => Box::new(|ctx: &mut Context, p: f32| {
-            //     println!("Saturation action: {}", p);
-            //     ctx.trigger_event(SetCameraSetting::Saturation(p))
-            // }),
-            // "gamma" => Box::new(|ctx: &mut Context, p: f32| {
-            //     println!("Gamma action: {}", p);
-            //     ctx.trigger_event(SetCameraSetting::Gamma(p))
-            // }),
-            // "exposure" => Box::new(|ctx: &mut Context, p: f32| {
-            //     println!("Exposure action: {}", p);
-            //     ctx.trigger_event(SetCameraSetting::Exposure(p))
-            // }),
-            // "contrast" => Box::new(|ctx: &mut Context, p: f32| {
-            //     println!("Contrast action: {}", p);
-            //     ctx.trigger_event(SetCameraSetting::Contrast(p))
-            // }),
-            // "temperature" => Box::new(|ctx: &mut Context, p: f32| {
-            //     println!("Temperature action: {}", p);
-            //     ctx.trigger_event(SetCameraSetting::Temperature(p))
-            // }),
+            "saturation" => Box::new(|ctx: &mut Context, p: f32| {
+                println!("Saturation action: {}", p);
+                ctx.trigger_event(SetCameraSetting::Saturation(p))
+            }),
+            "gamma" => Box::new(|ctx: &mut Context, p: f32| {
+                println!("Gamma action: {}", p);
+                ctx.trigger_event(SetCameraSetting::Gamma(p))
+            }),
+            "exposure" => Box::new(|ctx: &mut Context, p: f32| {
+                println!("Exposure action: {}", p);
+                ctx.trigger_event(SetCameraSetting::Exposure(p))
+            }),
+            "contrast" => Box::new(|ctx: &mut Context, p: f32| {
+                println!("Contrast action: {}", p);
+                ctx.trigger_event(SetCameraSetting::Contrast(p))
+            }),
+            "temperature" => Box::new(|ctx: &mut Context, p: f32| {
+                println!("Temperature action: {}", p);
+                ctx.trigger_event(SetCameraSetting::Temperature(p))
+            }),
             "white_balance_r" => Box::new(|ctx: &mut Context, p: f32| {
                 println!("WhiteBalanceR action: {}", p);
                 ctx.trigger_event(SetCameraSetting::WhiteBalanceR(p))
@@ -177,7 +191,7 @@ impl CameraView {
 }
 
 #[derive(Debug, Component)]
-pub struct CameraRoll(Stack, Page, #[skip] Option<Image>);
+pub struct CameraRoll(Stack, Page, #[skip] Option<(String, (f32, f32))>);
 
 impl AppPage for CameraRoll {
     fn has_nav(&self) -> bool { true }
@@ -193,7 +207,7 @@ impl AppPage for CameraRoll {
 impl OnEvent for CameraRoll {
     fn on_event(&mut self, _ctx: &mut Context, event: &mut dyn Event) -> bool {
         if let Some(SelectImageEvent(image, s)) = event.downcast_ref::<SelectImageEvent>() {
-            self.2 = Some(Image{shape: ShapeType::RoundedRectangle(0.0, *s, 8.0), image: image.image.clone(), color: None}) //Some((i.clone(), *s))
+            self.2 = Some((image.to_string(), *s)) //Some((i.clone(), *s))
         }
         true
     }
@@ -225,16 +239,21 @@ impl AppPage for ViewPhoto {
 }
 
 impl ViewPhoto {
-    pub fn new(ctx: &mut Context, image: Image) -> Self {
+    pub fn new(ctx: &mut Context, image: (String, (f32, f32))) -> Self {
+        ctx.theme.layout.bumper_max = f32::MAX;
         ctx.theme.layout.content_max = f32::MAX;
         ctx.theme.layout.content_padding = 0.0;
-        ctx.theme.layout.bumper_max = f32::MAX;
+        let img = EncodedImage::decode(ctx, &image.0);
+        let exp_img = ExpandableImage::new(img, Some((image.1.0, image.1.1)));
+        let content = Content::new(ctx, Offset::Center, vec![Box::new(exp_img)]);
 
         let back = IconButton::navigation(ctx, "left", |ctx: &mut Context| ctx.trigger_event(NavigateEvent(0)));
-        let header = Header::stack(ctx, Some(back), "View Photo", None);
-        let size = image.image.size();
-        let image = ExpandableImage::new(image.image, Some((size.0 as f32, size.1 as f32)));
-        let content = Content::new(ctx, Offset::Center, vec![Box::new(image)]);
+        let share = IconButton::navigation(ctx, "share", move |ctx: &mut Context| {
+            let decoded = EncodedImage::decode_rgba(&image.clone().0);
+            ctx.hardware.share_image(decoded);
+        });
+        
+        let header = Header::stack(ctx, Some(back), "View Photo", Some(share));
         ViewPhoto(Stack::default(), Page::new(Some(header), content, None))
     }
 }

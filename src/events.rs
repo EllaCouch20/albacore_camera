@@ -12,7 +12,7 @@ impl Event for TakePhotoEvent {
 }
 
 #[derive(Debug, Clone)]
-pub struct SelectImageEvent(pub Image, pub (f32, f32));
+pub struct SelectImageEvent(pub String, pub (f32, f32));
 
 impl Event for SelectImageEvent {
     fn pass(self: Box<Self>, _ctx: &mut Context, children: Vec<((f32, f32), (f32, f32))>) -> Vec<Option<Box<dyn Event>>> {
@@ -55,11 +55,11 @@ impl Event for SettingsSelect {
 #[derive(Debug, Clone)]
 pub enum SetCameraSetting {
     Brightness(f32),
-    // Contrast(f32),
-    // Saturation(f32),
-    // Gamma(f32),
-    // Exposure(f32),
-    // Temperature(f32),
+    Contrast(f32),
+    Saturation(f32),
+    Gamma(f32),
+    Exposure(f32),
+    Temperature(f32),
     WhiteBalanceR(f32),
     WhiteBalanceG(f32),
     WhiteBalanceB(f32),

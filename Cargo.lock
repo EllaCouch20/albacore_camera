@@ -1901,8 +1901,6 @@ dependencies = [
 [[package]]
 name = "maverick_os"
 version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbbfc701ec0433acfca2f7c2b31263ca66b6a196278efc817cd170287f2655d1"
 dependencies = [
  "air",
  "android-activity",
@@ -2842,8 +2840,6 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 [[package]]
 name = "pelican_ui"
 version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c80f908bae622d1a886b26ce4882d3a6b678bfbdc5c9bca0ca56d86da38269c1"
 dependencies = [
  "downcast-rs 2.0.1",
  "image 0.25.6",
@@ -2869,8 +2865,6 @@ dependencies = [
 [[package]]
 name = "pelican_ui_std"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ef2a4571ba349203a5c1f254cc586ceb82b1d169af8ffdef439a52275562b2f"
 dependencies = [
  "base64",
  "chrono",
