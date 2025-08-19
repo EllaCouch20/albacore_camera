@@ -10,7 +10,7 @@ use std::time::Instant;
 
 // use crate::pages::CameraRoll;
 use crate::service::LensRequest;
-use crate::events::{TakePhotoEvent, SetCameraSetting, OpenSettingsEvent, NewSettingSelectedEvent, SelectImageEvent, SettingsSelect};
+use crate::events::{NewPhotoEvent, TakePhotoEvent, SetCameraSetting, OpenSettingsEvent, NewSettingSelectedEvent, SelectImageEvent, SettingsSelect};
 use crate::LensPlugin;
 use crate::MyCameraRoll;
 use crate::pages::SettingsValue;
@@ -208,21 +208,20 @@ pub struct PhotoWrap(Box<dyn Layout>, Vec<ImageButton>, Option<ExpandableText>);
 impl OnEvent for PhotoWrap {}
 
 impl PhotoWrap {
-    pub fn new(ctx: &mut Context) -> Self {
+    pub fn new(ctx: &mut Context, photos: Vec<RgbaImage>) -> Self {
         let text_size = ctx.theme.fonts.size.md;
-        let my_images: Vec<(String, (f32, f32))> = ctx.state().get_or_default::<MyCameraRoll>().0.clone();
-        let help_text = my_images.is_empty().then_some(ExpandableText::new(
+        let help_text = photos.is_empty().then_some(ExpandableText::new(
             ctx, "Your camera roll is empty.\nTake a photo to get started.", 
             TextStyle::Primary, text_size, Align::Center, None
         ));
 
-        let layout = match my_images.is_empty() {
+        let layout = match photos.is_empty() {
             true => Box::new(Stack::center()) as Box<dyn Layout>,
             false => Box::new(Wrap::new(8.0, 8.0)) as Box<dyn Layout>
         };
 
-        let my_photos = my_images.into_iter().map(|(i, s)| 
-            ImageButton::new(ctx, i, s)
+        let my_photos = photos.into_iter().map(|p| 
+            ImageButton::new(ctx, p)
         ).collect();
 
         PhotoWrap(layout, my_photos, help_text)
@@ -230,12 +229,12 @@ impl PhotoWrap {
 }
 
 #[derive(Debug, Component)]
-pub struct ImageButton(Stack, ExpandableImage, #[skip] String, #[skip] (f32, f32));
+pub struct ImageButton(Stack, ExpandableImage, #[skip] RgbaImage);
 impl OnEvent for ImageButton {
     fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
         if let Some(MouseEvent{state: MouseState::Pressed, position: Some(_)}) = event.downcast_ref::<MouseEvent>() {
             ctx.hardware.haptic();
-            ctx.trigger_event(SelectImageEvent(self.2.to_string(), self.3));
+            ctx.trigger_event(SelectImageEvent(self.2.clone()));
             ctx.trigger_event(NavigateEvent(1));
         }
         true
@@ -243,11 +242,10 @@ impl OnEvent for ImageButton {
 }
 
 impl ImageButton {
-    pub fn new(ctx: &mut Context, i: String, size: (f32, f32)) -> Self {
-        let image = EncodedImage::decode(ctx, &i.clone());
+    pub fn new(ctx: &mut Context, image: RgbaImage) -> Self {
         ImageButton(
             Stack(Offset::Center, Offset::Center, Size::Static(64.0), Size::Static(64.0), Padding::default()), 
-            ExpandableImage::new(image, None), i.to_string(), size
+            ExpandableImage::new(ctx.assets.add_image(image.clone()), None), image
         )
     }
 }
@@ -280,11 +278,11 @@ impl OnEvent for AlbacoreCamera {
             }
         } else if let Some(TakePhotoEvent) = event.downcast_ref::<TakePhotoEvent>() {
             if let Some(rgba) = &self.3 {
+                ctx.trigger_event(NewPhotoEvent(rgba.clone()));
                 let mut guard = ctx.get::<LensPlugin>();
                 let plugin = guard.get().0;
-                let image = EncodedImage::encode_rgba(rgba.clone());
-                let size = self.1.image().image.size();
-                plugin.request(LensRequest::SavePhoto(image, (size.0 as f32, size.1 as f32)));
+                let img = EncodedImage::encode_rgba(rgba.clone());
+                plugin.request(LensRequest::SavePhoto(img, (rgba.width() as f32, rgba.height() as f32)));
             }
         }
         true

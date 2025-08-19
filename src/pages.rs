@@ -4,9 +4,10 @@ use pelican_ui::layout::{Area, SizeRequest, Layout};
 use pelican_ui::events::{Event, OnEvent, TickEvent};
 use pelican_ui::theme::LayoutResources;
 use pelican_ui::hardware::ImageSettings;
+use image::RgbaImage;
 
 use pelican_ui_std::{
-    IconButton, 
+    IconButton, ExpandableText,
     Stack, RoundedRectangle, 
     AppPage, ExpandableImage, 
     Size, Offset, Padding,
@@ -15,25 +16,25 @@ use pelican_ui_std::{
     Text, TextStyle, AspectRatioImage, EncodedImage,
 };
 
-use crate::events::SetCameraSetting;
+use crate::events::{SetCameraSetting, NewPhotoEvent};
 use crate::events::{OpenSettingsEvent, NewSettingSelectedEvent, TakePhotoEvent, SelectImageEvent, SettingsSelect};
 use crate::components::{AlbacoreCamera, CameraBumper, EditSettingsBumper, PhotoWrap, CameraRollButton};
 
 #[derive(Debug, Component)]
-pub struct CameraHome(Stack, Page, #[skip] Option<String>);
+pub struct CameraHome(Stack, Page, #[skip] Option<String>, #[skip] Vec<RgbaImage>);
 
 impl AppPage for CameraHome {
     fn has_nav(&self) -> bool { true }
     fn navigate(mut self: Box<Self>, ctx: &mut Context, index: usize) -> Result<Box<dyn AppPage>, Box<dyn AppPage>> { 
         match index {
-            0 => Ok(Box::new(CameraRoll::new(ctx))),
+            0 => Ok(Box::new(CameraRoll::new(ctx, self.3.clone()))),
             _ => Err(self),
         }
     }
 }
 
 impl CameraHome {
-    pub fn new(ctx: &mut Context, camera: Option<AlbacoreCamera>) -> Self {
+    pub fn new(ctx: &mut Context, camera: Option<AlbacoreCamera>, roll: Vec<RgbaImage>) -> Self {
         ctx.theme.layout.content_max = f32::MAX;
         ctx.theme.layout.content_padding = 0.0;
         ctx.theme.layout.bumper_max = f32::MAX;
@@ -46,7 +47,7 @@ impl CameraHome {
         let text = Text::new(ctx, "Brightness", TextStyle::Heading, text_size, Align::Center);
         let bumper = EditSettingsBumper::new(ctx, settings);
         let content = Content::new(ctx, Offset::Start, vec![Box::new(view)]);
-        CameraHome(Stack::default(), Page::new(None, content, None), None)
+        CameraHome(Stack::default(), Page::new(None, content, None), None, roll)
     }
 
     fn settings(&mut self) -> Option<ImageSettings> {
@@ -67,7 +68,9 @@ impl CameraHome {
 
 impl OnEvent for CameraHome {
     fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
-        if event.downcast_ref::<TickEvent>().is_some() {
+        if let Some(NewPhotoEvent(p)) = event.downcast_ref::<NewPhotoEvent>() {
+            self.3.push(p.clone());
+        } else if event.downcast_ref::<TickEvent>().is_some() {
             if let Some(i) = self.2.clone() {
                 let settings = self.settings().unwrap();
                 if let Some(crb) = self.settings_bumper() {
@@ -191,69 +194,69 @@ impl CameraView {
 }
 
 #[derive(Debug, Component)]
-pub struct CameraRoll(Stack, Page, #[skip] Option<(String, (f32, f32))>);
+pub struct CameraRoll(Stack, Page, #[skip] Option<RgbaImage>, #[skip] Vec<RgbaImage>);
 
 impl AppPage for CameraRoll {
     fn has_nav(&self) -> bool { true }
     fn navigate(mut self: Box<Self>, ctx: &mut Context, index: usize) -> Result<Box<dyn AppPage>, Box<dyn AppPage>> { 
         match index {
-            0 => Ok(Box::new(CameraHome::new(ctx, None))),
-            1 => Ok(Box::new(ViewPhoto::new(ctx, self.2.unwrap()))),
+            0 => Ok(Box::new(CameraHome::new(ctx, None, self.3.clone()))),
+            1 => Ok(Box::new(ViewPhoto::new(ctx, self.2.unwrap(), self.3.clone()))),
             _ => Err(self),
         }
     }
 }
 
 impl OnEvent for CameraRoll {
-    fn on_event(&mut self, _ctx: &mut Context, event: &mut dyn Event) -> bool {
-        if let Some(SelectImageEvent(image, s)) = event.downcast_ref::<SelectImageEvent>() {
-            self.2 = Some((image.to_string(), *s)) //Some((i.clone(), *s))
+    fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
+        if let Some(SelectImageEvent(image)) = event.downcast_ref::<SelectImageEvent>() {
+            self.2 = Some(image.clone()) //Some((i.clone(), *s))
         }
         true
     }
 }
 
 impl CameraRoll {
-    pub fn new(ctx: &mut Context) -> Self {
+    pub fn new(ctx: &mut Context, roll: Vec<RgbaImage>) -> Self {
         ctx.theme.layout = LayoutResources::default();
-        let photo_wrap = PhotoWrap::new(ctx);
         let back = IconButton::navigation(ctx, "left", |ctx: &mut Context| ctx.trigger_event(NavigateEvent(0)));
         let header = Header::stack(ctx, Some(back), "Library", None);
-        let content = Content::new(ctx, Offset::Start, vec![Box::new(photo_wrap)]);
-        CameraRoll(Stack::default(), Page::new(Some(header), content, None), None)
+        let text_size = ctx.theme.fonts.size.md;
+        let wrap = PhotoWrap::new(ctx, roll.clone());
+
+        let content = Content::new(ctx, Offset::Start, vec![Box::new(wrap)]);
+        CameraRoll(Stack::default(), Page::new(Some(header), content, None), None, roll)
     }
 }
 
 #[derive(Debug, Component)]
-pub struct ViewPhoto(Stack, Page);
+pub struct ViewPhoto(Stack, Page, #[skip] Vec<RgbaImage>);
 impl OnEvent for ViewPhoto {}
 
 impl AppPage for ViewPhoto {
     fn has_nav(&self) -> bool { true }
     fn navigate(self: Box<Self>, ctx: &mut Context, index: usize) -> Result<Box<dyn AppPage>, Box<dyn AppPage>> { 
         match index {
-            0 => Ok(Box::new(CameraRoll::new(ctx))),
+            0 => Ok(Box::new(CameraRoll::new(ctx, self.2.clone()))),
             _ => Err(self),
         }
     }
 }
 
 impl ViewPhoto {
-    pub fn new(ctx: &mut Context, image: (String, (f32, f32))) -> Self {
+    pub fn new(ctx: &mut Context, image: RgbaImage, roll: Vec<RgbaImage>) -> Self {
         ctx.theme.layout.bumper_max = f32::MAX;
         ctx.theme.layout.content_max = f32::MAX;
         ctx.theme.layout.content_padding = 0.0;
-        let img = EncodedImage::decode(ctx, &image.0);
-        let exp_img = ExpandableImage::new(img, Some((image.1.0, image.1.1)));
+        let exp_img = ExpandableImage::new(ctx.assets.add_image(image.clone()), Some((image.width() as f32, image.height() as f32)));
         let content = Content::new(ctx, Offset::Center, vec![Box::new(exp_img)]);
 
         let back = IconButton::navigation(ctx, "left", |ctx: &mut Context| ctx.trigger_event(NavigateEvent(0)));
         let share = IconButton::navigation(ctx, "share", move |ctx: &mut Context| {
-            let decoded = EncodedImage::decode_rgba(&image.clone().0);
-            ctx.hardware.share_image(decoded);
+            ctx.hardware.share_image(image.clone());
         });
         
         let header = Header::stack(ctx, Some(back), "View Photo", Some(share));
-        ViewPhoto(Stack::default(), Page::new(Some(header), content, None))
+        ViewPhoto(Stack::default(), Page::new(Some(header), content, None), roll)
     }
 }

@@ -4,7 +4,7 @@ use pelican_ui::layout::{Area, SizeRequest, Layout};
 use pelican_ui::events::{OnEvent, Event};
 use pelican_ui::runtime::{Services, ServiceList};
 use pelican_ui::hardware::ApplicationSupport;
-use pelican_ui_std::{Stack, Interface};
+use pelican_ui_std::{Stack, Interface, EncodedImage};
 
 
 use std::fs::File;
@@ -12,6 +12,7 @@ use std::path::Path;
 use std::io::Write;
 use std::io::BufReader;
 use tempfile::NamedTempFile;
+use image::RgbaImage;
 
 // mod bdk;
 // use bdk::BDKPlugin;
@@ -85,11 +86,12 @@ impl App {
         let storage_path = ApplicationSupport::get().unwrap();
         std::fs::create_dir_all(&storage_path).unwrap();
         let path = storage_path.join("my_camera_roll.json");
+        
         let photos = Self::load_photos(&path);
- 
-        ctx.state().set(MyCameraRoll(photos));
+        ctx.state().set(MyCameraRoll(photos.clone()));
+        let rgbas = photos.into_iter().map(|(p, _)| EncodedImage::decode_rgba(&p)).collect();
 
-        let home = CameraHome::new(ctx, None);
+        let home = CameraHome::new(ctx, None, rgbas);
         let interface = Interface::new(ctx, Box::new(home), None, None);
         Box::new(App(Stack::default(), interface, false))
     }
