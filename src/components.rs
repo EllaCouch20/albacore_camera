@@ -27,8 +27,8 @@ use pelican_ui_std::{
     ButtonWidth, ButtonSize, Button,
     Slider, Rectangle, Scroll,
     AdjustScrollEvent, ScrollAnchor,
-    ElementID, NavigationButton,
-    NavigatorSelect, Brand
+    ElementID,
+    NavigatorSelect, AspectRatioImage
 };
 
 pub struct CameraBumper;
@@ -261,7 +261,7 @@ impl AlbacoreCamera {
         
         AlbacoreCamera(
             Stack(Offset::Center,Offset::Center,Size::fill(),Size::fill(),Padding::default()),
-            ExpandableImage::new(blank, None), Camera::new_custom().ok(), None
+            ExpandableImage::new(blank, None), Camera::new_unprocessed().ok(), None
         )
     }
 

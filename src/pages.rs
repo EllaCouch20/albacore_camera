@@ -12,7 +12,7 @@ use pelican_ui_std::{
     Size, Offset, Padding,
     Header, Column, NavigateEvent,
     Page, Content, Slider, Bumper,
-    Text, TextStyle, Brand, EncodedImage,
+    Text, TextStyle, AspectRatioImage, EncodedImage,
 };
 
 use crate::events::SetCameraSetting;
