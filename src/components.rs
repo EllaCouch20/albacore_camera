@@ -75,7 +75,7 @@ impl CameraRollButton {
         let photos = ctx.state().get_or_default::<MyCameraRoll>().0.clone();
         let blank = ctx.theme.brand.illustrations.get("blank").unwrap();
         let image = photos.last().map(|(p, _)| EncodedImage::decode(ctx, &p)).unwrap_or(blank);
-        let image = Image{shape: ShapeType::RoundedRectangle(0.0, (48.0, 48.0), 8.0), image, color: None};
+        let image = Image{shape: ShapeType::RoundedRectangle(0.0, (48.0, 48.0), 8.0, 0.0), image, color: None};
         let layout = Stack(Offset::Center, Offset::Center, Size::Static(48.0), Size::Static(48.0), Padding::default());
         let len = ctx.state().get_or_default::<MyCameraRoll>().0.len();
         CameraRollButton(Stack::default(), image, Bin(layout, RoundedRectangle::new(1.0, 8.0, color)), i, len as u8, 0)

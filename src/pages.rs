@@ -2,7 +2,7 @@ use pelican_ui::{resources, Component, Context};
 use pelican_ui::drawable::{Align, Drawable, Component, Image, ShapeType};
 use pelican_ui::layout::{Area, SizeRequest, Layout};
 use pelican_ui::events::{Event, OnEvent, TickEvent};
-use pelican_ui::theme::LayoutResources;
+use pelican_ui::LayoutResources;
 use pelican_ui::hardware::ImageSettings;
 use image::RgbaImage;
 
