@@ -10,7 +10,11 @@ use std::time::Instant;
 
 // use crate::pages::CameraRoll;
 use crate::service::LensRequest;
-use crate::events::{NewPhotoEvent, TakePhotoEvent, SetCameraSetting, OpenSettingsEvent, NewSettingSelectedEvent, SelectImageEvent, SettingsSelect};
+use crate::events::{
+    NewPhotoEvent, TakePhotoEvent, SetCameraSetting, 
+    OpenSettingsEvent, NewSettingSelectedEvent, 
+    SelectImageEvent, SettingsSelect, ResetSetting,
+};
 use crate::LensPlugin;
 use crate::MyCameraRoll;
 use crate::pages::SettingsValue;
@@ -60,7 +64,10 @@ impl OnEvent for ShutterButton {
     fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
         if let Some(MouseEvent { state: MouseState::Pressed, position: Some(_) }) = event.downcast_ref::<MouseEvent>() {
             ctx.hardware.haptic();
+            self.1 = Icon::new(ctx, "camera_shutter_active", ctx.theme.colors.text.heading, 64.0);
             ctx.trigger_event(TakePhotoEvent);
+        } else if let Some(MouseEvent { state: MouseState::Released, position: _ }) = event.downcast_ref::<MouseEvent>() {
+            self.1 = Icon::new(ctx, "camera_shutter", ctx.theme.colors.text.heading, 64.0);
         }
         true
     }
@@ -106,32 +113,62 @@ impl OnEvent for CameraRollButton {
 }
 
 #[derive(Debug, Component)]
-pub struct EditSettingsBumper(Column, Text, SettingsOptions, EditSlider);
+pub struct EditSettingsBumper(Column, SettingsBumperHeader, SettingsOptions, EditSlider);
 impl OnEvent for EditSettingsBumper {}
 
 impl EditSettingsBumper {
     pub fn new(ctx: &mut Context, settings: ImageSettings) -> Self {
-        let text_size = ctx.theme.fonts.size.h5;
-        let text = Text::new(ctx, "Brightness", TextStyle::Heading, text_size, Align::Center);
         let options = SettingsOptions::new(ctx);
         let action = SettingsValue::event("brightness".to_string());
         let value = SettingsValue::get(settings, "brightness".to_string());
         let edit_slider = EditSlider::new(ctx, value, action);
+        let header = SettingsBumperHeader::new(ctx);
         let layout = Column::new(24.0, Offset::Center, Size::Fit, Padding::default());
-        EditSettingsBumper(layout, text, options, edit_slider)
+        EditSettingsBumper(layout, header, options, edit_slider)
     }
 
+    pub fn get_current_label(&mut self) -> &mut String {self.1.text()}
+    
     pub fn set_slider_value(&mut self, val: f32) {
         self.3.set_value(val)
     }
 
-    pub fn set_text(&mut self, text: String) {
-        self.1.text().spans[0].text = text.replace('_', " ").split_whitespace().map(|w| w[..1].to_uppercase() + &w[1..]).collect::<Vec<_>>().join(" ");
-    }
+    pub fn set_text(&mut self, text: String) { self.1.set_text(text); }
 
     pub fn set_slider(&mut self, settings: ImageSettings, ctx: &mut Context, i: String) {
         let action = SettingsValue::event(i.to_string());
         *self.3.slider() = Slider::new(ctx, 50.0, None, None, action);
+    }
+
+    pub fn set_slider_to_default(&mut self, ctx: &mut Context, i: String) {
+        let value = SettingsValue::default(i.to_string());
+        let action = SettingsValue::event(i.to_string());
+        self.3.slider().set_value(value);
+        self.3.slider().trigger_event(ctx, value);
+    }
+}
+
+#[derive(Debug, Component)]
+pub struct SettingsBumperHeader(Row, Button, ExpandableText, Button);
+impl OnEvent for SettingsBumperHeader {}
+
+impl SettingsBumperHeader {
+    pub fn new(ctx: &mut Context) -> Self {
+        let text_size = ctx.theme.fonts.size.h5;
+        let text = ExpandableText::new(ctx, "Brightness", TextStyle::Heading, text_size, Align::Center, None);
+        let done = AlbacoreButton::primary(ctx, "Done", |ctx: &mut Context| ctx.trigger_event(OpenSettingsEvent::Close));
+        let reset = AlbacoreButton::secondary(ctx, "Reset", |ctx: &mut Context| ctx.trigger_event(ResetSetting));
+
+        let layout = Row::new(24.0, Offset::Center, Size::Fit, Padding::default());
+        SettingsBumperHeader(layout, done, text, reset)
+    }
+
+    pub fn text(&mut self) -> &mut String {
+        &mut self.2.text().spans[0].text
+    }
+
+    pub fn set_text(&mut self, text: String) {
+        *self.text() = text.replace('_', " ").split_whitespace().map(|w| w[..1].to_uppercase() + &w[1..]).collect::<Vec<_>>().join(" ");
     }
 }
 
@@ -163,7 +200,15 @@ pub struct SettingsOptionsContent(Row, Vec<SettingsButton>);
 
 impl SettingsOptionsContent {
     pub fn new(ctx: &mut Context) -> Self {
-        let icons = vec!["brightness", "white_balance_r", "white_balance_g", "white_balance_b"];
+        let icons = vec![
+            "gamma", "contrast",
+            "brightness", "saturation", 
+            "temperature", "white_balance_r", 
+            "white_balance_g", "white_balance_b", 
+            "exposure_iso", "exposure_duration", 
+            "exposure_stacking"
+        ];
+
         let children = icons.into_iter().enumerate().map(|(idx, icon)| {
             let closure = move |ctx: &mut Context| {
                 ctx.trigger_event(SettingsSelect(icon.to_string()));
@@ -189,18 +234,17 @@ impl OnEvent for SettingsOptionsContent {
 }
 
 #[derive(Debug, Component)]
-pub struct EditSlider(Row, Button, Slider);
+pub struct EditSlider(Row, Slider);
 impl OnEvent for EditSlider {}
 
 impl EditSlider {
     pub fn new(ctx: &mut Context, start: f32, on_click: Box<dyn FnMut(&mut Context, f32)>) -> Self {
-        let button = DoneButton::new(ctx, |ctx: &mut Context| ctx.trigger_event(OpenSettingsEvent::Close));
         let slider = Slider::new(ctx, start, None, None, on_click);
-        EditSlider(Row::center(24.0), button, slider)
+        EditSlider(Row::center(24.0), slider)
     }
 
-    pub fn set_value(&mut self, val: f32) {self.2.set_value(val)}
-    pub fn slider(&mut self) -> &mut Slider {&mut self.2}
+    pub fn set_value(&mut self, val: f32) {self.1.set_value(val)}
+    pub fn slider(&mut self) -> &mut Slider {&mut self.1}
 }
 
 #[derive(Debug, Component)]
@@ -251,7 +295,7 @@ impl ImageButton {
 }
 
 #[derive(Debug, Component)]
-pub struct AlbacoreCamera(Stack, ExpandableImage, #[skip] Option<Camera>, #[skip] Option<RgbaImage>);
+pub struct AlbacoreCamera(Stack, ExpandableImage, #[skip] Option<Camera>, #[skip] Option<RgbaImage>, #[skip] Option<Vec<RgbaImage>>);
 
 impl AlbacoreCamera {
     pub fn new(ctx: &mut Context) -> Self {
@@ -259,22 +303,60 @@ impl AlbacoreCamera {
         
         AlbacoreCamera(
             Stack(Offset::Center,Offset::Center,Size::fill(),Size::fill(),Padding::default()),
-            ExpandableImage::new(blank, None), Camera::new_unprocessed().ok(), None
+            ExpandableImage::new(blank, None), Camera::new_unprocessed().ok(), None, None
         )
     }
 
     pub fn camera(&mut self) -> &mut Option<Camera> {&mut self.2}
+
+    pub fn exposure_stack(&mut self) -> RgbaImage {
+        let images = self.4.clone().expect("no images to stack for exposure");
+        let (width, height) = (images[0].width(), images[0].height());
+
+        let images: Vec<_> = images.into_iter().map(|c| c.into_raw()).collect();
+        let len = images[0].len();
+        let mut out = vec![0f32; len];
+        let n = images.len() as f32;
+
+        for img in images {
+            for (o, &p) in out.iter_mut().zip(img.iter()) {
+                *o += p as f32;
+            }
+        }
+
+        let result = out.into_iter().map(|v| (v / n).round().clamp(0.0, 255.0) as u8).collect();
+        RgbaImage::from_raw(width, height, result).unwrap()
+    }
 }
 
 impl OnEvent for AlbacoreCamera {
     fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
         if let Some(TickEvent) = event.downcast_ref::<TickEvent>() {
+            if let Some(vec) = &mut self.4 {
+                if let Some(rgba) = &self.3 {
+                    vec.push(rgba.clone());
+                    if vec.len() >= 4 {
+                        let rgba = self.exposure_stack();
+                        ctx.trigger_event(NewPhotoEvent(rgba.clone()));
+                        let mut guard = ctx.get::<LensPlugin>();
+                        let plugin = guard.get().0;
+                        let img = EncodedImage::encode_rgba(rgba.clone());
+                        plugin.request(LensRequest::SavePhoto(img, (rgba.width() as f32, rgba.height() as f32)));
+                    }
+                }
+            }
+
             if let Some(ref mut camera) = self.2 {
                 if let Some(raw_frame) = camera.get_frame() {
                     self.3 = Some(raw_frame.clone());
                     let image = ctx.assets.add_image(raw_frame);
                     self.1.image().image = image;
                 }
+            }
+        } else if let Some(SetCameraSetting::ExposureStacking(enabled)) = event.downcast_ref::<SetCameraSetting>() {
+            match enabled {
+                true => self.4 = Some(vec![]),
+                false => self.4 = None,
             }
         } else if let Some(TakePhotoEvent) = event.downcast_ref::<TakePhotoEvent>() {
             if let Some(rgba) = &self.3 {
@@ -291,10 +373,12 @@ impl OnEvent for AlbacoreCamera {
 
 #[derive(Debug, Component)]
 pub struct SettingsButton(Stack, IconButton, #[skip] String);
+
 impl OnEvent for SettingsButton {}
 
 impl SettingsButton {
-    pub fn new(id: String, button: IconButton) -> Self {
+    pub fn new(id: String, mut button: IconButton) -> Self {
+        button.set_trigger_on_press(false);
         SettingsButton(Stack::default(), button, id)
     }
 
@@ -307,18 +391,35 @@ impl SettingsButton {
     }
 }
 
-struct DoneButton;
-impl DoneButton {
-    pub fn new(ctx: &mut Context, on_click: impl FnMut(&mut Context) + 'static) -> Button {
+struct AlbacoreButton;
+impl AlbacoreButton {
+    pub fn primary(ctx: &mut Context, label: &str, on_click: impl FnMut(&mut Context) + 'static) -> Button {
         Button::new(
             ctx,
             None,
             None,
-            Some("Done"),
+            Some(label),
             None,
             ButtonSize::Medium,
             ButtonWidth::Hug,
             ButtonStyle::Primary,
+            ButtonState::Default,
+            Offset::Center,
+            on_click,
+            None,
+        )
+    }
+
+    pub fn secondary(ctx: &mut Context, label: &str, on_click: impl FnMut(&mut Context) + 'static) -> Button {
+        Button::new(
+            ctx,
+            None,
+            None,
+            Some(label),
+            None,
+            ButtonSize::Medium,
+            ButtonWidth::Hug,
+            ButtonStyle::Secondary,
             ButtonState::Default,
             Offset::Center,
             on_click,

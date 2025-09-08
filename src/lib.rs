@@ -59,13 +59,26 @@ impl Application for MyApp {
         theme.colors.button.primary_hover.background = Color::from_hex("0914E9", 255);
         theme.colors.button.primary_selected.background = Color::from_hex("0914E9", 255);
         theme.colors.button.primary_pressed.background = Color::from_hex("0914E9", 255);
+        // theme.colors.button.ghost_default.background = Color::from_hex("000000", 0);
+        // theme.colors.button.ghost_hover.background = Color::from_hex("000000", 0);
+        theme.colors.button.ghost_selected.background = Color::from_hex("000000", 0);
+        theme.colors.button.ghost_pressed.background = Color::from_hex("000000", 0);
+        theme.colors.button.ghost_selected.label = Color::from_hex("131EFF", 255);
+        theme.colors.button.ghost_pressed.label = Color::from_hex("131EFF", 255);
+
+        theme.colors.button.secondary_default.background = Color::from_hex("FF3939", 255);
+        theme.colors.button.secondary_hover.background = Color::from_hex("FF3939", 255);
+        theme.colors.button.secondary_selected.background = Color::from_hex("E52121", 255);
+        theme.colors.button.secondary_pressed.background = Color::from_hex("E52121", 255);
 
         let icons = vec![
             "brightness", "camera_roll", "contrast", 
-            "exposure", "gamma", "saturation",
+            "exposure_iso", "exposure_duration", 
+            "gamma", "saturation",
             "share", "sliders", "temperature",
             "white_balance_r", "white_balance_g", 
             "white_balance_b", "camera_shutter",
+            "camera_shutter_active", "exposure_stacking"
         ];
 
         icons.into_iter().for_each(|p| theme.icons.insert(ctx, p));
@@ -103,8 +116,7 @@ impl App {
         }
         let file = File::open(path).expect("Could not open path");
         let reader = BufReader::new(file);
-        let photos = serde_json::from_reader(reader).expect("Could not read from reader");
-        photos
+        serde_json::from_reader(reader).expect("Could not read from reader")
     }
 }
 

@@ -17,11 +17,11 @@ use pelican_ui_std::{
 };
 
 use crate::events::{SetCameraSetting, NewPhotoEvent};
-use crate::events::{OpenSettingsEvent, NewSettingSelectedEvent, TakePhotoEvent, SelectImageEvent, SettingsSelect};
+use crate::events::{ResetSetting, OpenSettingsEvent, NewSettingSelectedEvent, TakePhotoEvent, SelectImageEvent, SettingsSelect, PhotoBurstEvent};
 use crate::components::{AlbacoreCamera, CameraBumper, EditSettingsBumper, PhotoWrap, CameraRollButton};
 
 #[derive(Debug, Component)]
-pub struct CameraHome(Stack, Page, #[skip] Option<String>, #[skip] Vec<RgbaImage>);
+pub struct CameraHome(Stack, Page, #[skip] Option<String>, #[skip] Vec<RgbaImage>, #[skip] bool);
 
 impl AppPage for CameraHome {
     fn has_nav(&self) -> bool { true }
@@ -47,7 +47,7 @@ impl CameraHome {
         let text = Text::new(ctx, "Brightness", TextStyle::Heading, text_size, Align::Center);
         let bumper = EditSettingsBumper::new(ctx, settings);
         let content = Content::new(ctx, Offset::Start, vec![Box::new(view)]);
-        CameraHome(Stack::default(), Page::new(None, content, None), None, roll)
+        CameraHome(Stack::default(), Page::new(None, content, None), None, roll, false)
     }
 
     fn settings(&mut self) -> Option<ImageSettings> {
@@ -68,7 +68,16 @@ impl CameraHome {
 
 impl OnEvent for CameraHome {
     fn on_event(&mut self, ctx: &mut Context, event: &mut dyn Event) -> bool {
-        if let Some(NewPhotoEvent(p)) = event.downcast_ref::<NewPhotoEvent>() {
+        if let Some(PhotoBurstEvent(vec)) = event.downcast_ref::<PhotoBurstEvent>() {
+            // self.exposure_stack(vec).map(|e| self.3.push(e));
+            // let width = vec[0].width();
+            // let height = vec[0].height();
+            // AlbacoreCamera::exposure_stack(
+            //     &vec.into_iter().map(|img| img.clone().into_raw()).collect::<Vec<Vec<u8>>>()
+            // ).map(|p| {
+            //     RgbaImage::from_raw(width, height, p).map(|img| self.3.push(img));
+            // });        
+        } else if let Some(NewPhotoEvent(p)) = event.downcast_ref::<NewPhotoEvent>() {
             self.3.push(p.clone());
         } else if event.downcast_ref::<TickEvent>().is_some() {
             if let Some(i) = self.2.clone() {
@@ -79,13 +88,20 @@ impl OnEvent for CameraHome {
                 }
             }
         } else if let Some(s) = event.downcast_ref::<OpenSettingsEvent>() {
-            match s {
+            *self.1.content().find::<CameraView>().unwrap().bumper().items() = match s {
                 OpenSettingsEvent::Open => {
                     let settings = self.settings().unwrap();
-                    *self.1.content().find::<CameraView>().unwrap().bumper().items() = vec![Box::new(EditSettingsBumper::new(ctx, settings))]
+                    vec![Box::new(EditSettingsBumper::new(ctx, settings))]
                 },
                 OpenSettingsEvent::Close => {
-                    *self.1.content().find::<CameraView>().unwrap().bumper().items() = vec![Box::new(CameraBumper::new(ctx, 0))]
+                    vec![Box::new(CameraBumper::new(ctx, 0))]
+                }
+            };
+        } else if event.downcast_ref::<ResetSetting>().is_some() {
+            if let Some(view) = &mut self.1.content().find::<CameraView>() {
+                if let Some(crb) = view.bumper().find::<EditSettingsBumper>() {
+                    let id = crb.get_current_label().clone().to_lowercase().replace(' ', "_");
+                    crb.set_slider_to_default(ctx, id.to_string());
                 }
             }
         } else if let Some(SettingsSelect(id)) = event.downcast_ref::<SettingsSelect>() {
@@ -102,6 +118,8 @@ impl OnEvent for CameraHome {
             }
         } else if let Some(setting) = event.downcast_ref::<SetCameraSetting>() {
             if let Some(camera) = self.1.content().find::<CameraView>().as_mut().unwrap().camera().as_mut().unwrap().camera() {
+                let settings = camera.get_settings().unwrap().clone();
+
                 match setting {
                     SetCameraSetting::Brightness(p) => camera.set_brightness((((p/100.0)*200.0)-100.0) as i16),
                     SetCameraSetting::Contrast(p) => camera.set_contrast(((p/100.0)*2.0)-1.0),
@@ -112,6 +130,15 @@ impl OnEvent for CameraHome {
                     SetCameraSetting::WhiteBalanceR(p) => camera.set_white_balance_r(0.5+(p/100.0)*1.5),
                     SetCameraSetting::WhiteBalanceG(p) => camera.set_white_balance_g(0.5+(p/100.0)*1.5),
                     SetCameraSetting::WhiteBalanceB(p) => camera.set_white_balance_b(0.5+(p/100.0)*1.5),
+                    SetCameraSetting::ExposureIso(p) => {
+                        let value = SettingsValue::get(settings.clone(), "exposure_duration".to_string());
+                        camera.set_exposure_and_iso(*p, value)
+                    },
+                    SetCameraSetting::ExposureDur(p) => {
+                        let value = SettingsValue::get(settings.clone(), "exposure_iso".to_string());
+                        camera.set_exposure_and_iso(value, *p)
+                    }
+                    _ => Ok(())
                 };
             }
         }
@@ -121,20 +148,40 @@ impl OnEvent for CameraHome {
 
 pub struct SettingsValue;
 impl SettingsValue {
+    pub fn default(i: String) -> f32 {
+        match i.as_str() {
+            "brightness" => 50.0,
+            "saturation" => 50.0,
+            // "exposure" => ((settings.exposure + 2.0)/4.0)*100.0,
+            "contrast" => 50.0,
+            "temperature" => 56.5,
+            "white_balance_r" => 33.0,
+            "white_balance_g" => 33.0,
+            "white_balance_b" => 33.0,
+            "exposure_iso" => 50.0, 
+            "exposure_duration" => 50.0,
+            _ => 0.0
+        }
+    }
+
     pub fn get(settings: ImageSettings, i: String) -> f32 {
         match i.as_str() {
             "brightness" => ((settings.brightness as f32 + 100.0)/200.0)*100.0,
             "saturation" => ((settings.saturation + 1.0)/2.0)*100.0,
-            "gamma" => ((settings.temperature - 2000.0)/8000.0)*100.0,
-            "exposure" => ((settings.exposure + 2.0)/4.0)*100.0,
+            // "exposure" => ((settings.exposure + 2.0)/4.0)*100.0,
             "contrast" => ((settings.contrast + 1.0)/2.0)*100.0,
             "temperature" => ((settings.temperature - 2000.0)/8000.0)*100.0,
             "white_balance_r" => ((settings.white_balance_r - 0.5)/1.5)*100.0,
             "white_balance_g" => ((settings.white_balance_g - 0.5)/1.5)*100.0,
             "white_balance_b" => ((settings.white_balance_b - 0.5)/1.5)*100.0,
+            "exposure_iso" => settings.exposure_iso, 
+            "exposure_duration" => settings.exposure_duration,
             _ => 0.0
         }
     }
+
+    // let duration_seconds = 1.0 / 60.0;
+    // let target_iso: f32 = 200.0;
 
     pub fn event(i: String) -> Box<dyn FnMut(&mut Context, f32)> {
         match i.as_str() {
@@ -146,10 +193,10 @@ impl SettingsValue {
                 println!("Saturation action: {}", p);
                 ctx.trigger_event(SetCameraSetting::Saturation(p))
             }),
-            "gamma" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("Gamma action: {}", p);
-                ctx.trigger_event(SetCameraSetting::Gamma(p))
-            }),
+            // "gamma" => Box::new(|ctx: &mut Context, p: f32| {
+            //     println!("Gamma action: {}", p);
+            //     ctx.trigger_event(SetCameraSetting::Gamma(p))
+            // }),
             "exposure" => Box::new(|ctx: &mut Context, p: f32| {
                 println!("Exposure action: {}", p);
                 ctx.trigger_event(SetCameraSetting::Exposure(p))
@@ -173,6 +220,14 @@ impl SettingsValue {
             "white_balance_b" => Box::new(|ctx: &mut Context, p: f32| {
                 println!("WhiteBalanceB action: {}", p);
                 ctx.trigger_event(SetCameraSetting::WhiteBalanceB(p))
+            }),
+            "exposure_duration" => Box::new(|ctx: &mut Context, p: f32| {
+                println!("Exposure dur action: {}", p);
+                ctx.trigger_event(SetCameraSetting::ExposureDur(p))
+            }),
+            "exposure_iso" => Box::new(|ctx: &mut Context, p: f32| {
+                println!("ISO action: {}", p);
+                ctx.trigger_event(SetCameraSetting::ExposureIso(p))
             }),
             _ => Box::new(move |ctx: &mut Context, p: f32| {
                 println!("Unknown event: {} with value: {}", i, p);

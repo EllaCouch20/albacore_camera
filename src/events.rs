@@ -31,6 +31,24 @@ impl Event for NewPhotoEvent {
 }
 
 #[derive(Debug, Clone)]
+pub struct PhotoBurstEvent(pub Vec<RgbaImage>);
+
+impl Event for PhotoBurstEvent {
+    fn pass(self: Box<Self>, _ctx: &mut Context, children: Vec<((f32, f32), (f32, f32))>) -> Vec<Option<Box<dyn Event>>> {
+        children.into_iter().map(|_| Some(self.clone() as Box<dyn Event>)).collect()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ResetSetting;
+
+impl Event for ResetSetting {
+    fn pass(self: Box<Self>, _ctx: &mut Context, children: Vec<((f32, f32), (f32, f32))>) -> Vec<Option<Box<dyn Event>>> {
+        children.into_iter().map(|_| Some(self.clone() as Box<dyn Event>)).collect()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct NewSettingSelectedEvent(pub String);
 
 impl Event for NewSettingSelectedEvent {
@@ -72,6 +90,9 @@ pub enum SetCameraSetting {
     WhiteBalanceR(f32),
     WhiteBalanceG(f32),
     WhiteBalanceB(f32),
+    ExposureIso(f32),
+    ExposureDur(f32),
+    ExposureStacking(bool),
 }
 
 impl Event for SetCameraSetting {
