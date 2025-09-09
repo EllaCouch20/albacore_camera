@@ -12,7 +12,6 @@ use std::path::Path;
 use std::io::Write;
 use std::io::BufReader;
 use tempfile::NamedTempFile;
-use image::RgbaImage;
 
 // mod bdk;
 // use bdk::BDKPlugin;

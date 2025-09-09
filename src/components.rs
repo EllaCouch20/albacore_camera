@@ -1,4 +1,4 @@
-use pelican_ui::{resources, Component, Context};
+use pelican_ui::{Component, Context};
 use pelican_ui::drawable::{Align, ShapeType, Drawable, Component, Image};
 use pelican_ui::layout::{Area, SizeRequest, Layout};
 use pelican_ui::events::{Event, OnEvent, TickEvent, MouseEvent, MouseState};
@@ -6,13 +6,12 @@ use pelican_ui::hardware::Camera;
 use pelican_ui::hardware::ImageSettings;
 
 use image::RgbaImage;
-use std::time::Instant;
 
 // use crate::pages::CameraRoll;
 use crate::service::LensRequest;
 use crate::events::{
     NewPhotoEvent, TakePhotoEvent, SetCameraSetting, 
-    OpenSettingsEvent, NewSettingSelectedEvent, 
+    OpenSettingsEvent, 
     SelectImageEvent, SettingsSelect, ResetSetting,
 };
 use crate::LensPlugin;
@@ -20,19 +19,17 @@ use crate::MyCameraRoll;
 use crate::pages::SettingsValue;
 
 use pelican_ui_std::{
-    Row, IconButton, Text,
+    Row, IconButton,
     Stack, ExpandableImage, 
     Size, Offset, Padding, 
-    Wrap, TextStyle, Header,
+    Wrap, TextStyle,
     NavigateEvent, ExpandableText, 
-    EncodedImage, AppPage, Column,
+    EncodedImage, Column,
     Bumper, Icon, Bin, ButtonState,
     RoundedRectangle, ButtonStyle,
     ButtonWidth, ButtonSize, Button,
-    Slider, Rectangle, Scroll,
-    AdjustScrollEvent, ScrollAnchor,
-    ElementID,
-    NavigatorSelect, AspectRatioImage
+    Slider, Scroll,
+    AdjustScrollEvent, ScrollAnchor
 };
 
 pub struct CameraBumper;
@@ -81,7 +78,7 @@ impl CameraRollButton {
         let color = ctx.theme.colors.text.heading;
         let photos = ctx.state().get_or_default::<MyCameraRoll>().0.clone();
         let blank = ctx.theme.brand.illustrations.get("blank").unwrap();
-        let image = photos.last().map(|(p, _)| EncodedImage::decode(ctx, &p)).unwrap_or(blank);
+        let image = photos.last().map(|(p, _)| EncodedImage::decode(ctx, p)).unwrap_or(blank);
         let image = Image{shape: ShapeType::RoundedRectangle(0.0, (48.0, 48.0), 8.0, 0.0), image, color: None};
         let layout = Stack(Offset::Center, Offset::Center, Size::Static(48.0), Size::Static(48.0), Padding::default());
         let len = ctx.state().get_or_default::<MyCameraRoll>().0.len();
@@ -310,6 +307,7 @@ impl AlbacoreCamera {
     pub fn camera(&mut self) -> &mut Option<Camera> {&mut self.2}
 
     pub fn exposure_stack(&mut self) -> RgbaImage {
+        println!("STACKING EXPOSURE FRAMES");
         let images = self.4.clone().expect("no images to stack for exposure");
         let (width, height) = (images[0].width(), images[0].height());
 
@@ -325,6 +323,7 @@ impl AlbacoreCamera {
         }
 
         let result = out.into_iter().map(|v| (v / n).round().clamp(0.0, 255.0) as u8).collect();
+        self.4 = Some(Vec::new());
         RgbaImage::from_raw(width, height, result).unwrap()
     }
 }
@@ -336,12 +335,7 @@ impl OnEvent for AlbacoreCamera {
                 if let Some(rgba) = &self.3 {
                     vec.push(rgba.clone());
                     if vec.len() >= 4 {
-                        let rgba = self.exposure_stack();
-                        ctx.trigger_event(NewPhotoEvent(rgba.clone()));
-                        let mut guard = ctx.get::<LensPlugin>();
-                        let plugin = guard.get().0;
-                        let img = EncodedImage::encode_rgba(rgba.clone());
-                        plugin.request(LensRequest::SavePhoto(img, (rgba.width() as f32, rgba.height() as f32)));
+                        vec.remove(0);
                     }
                 }
             }
@@ -359,12 +353,21 @@ impl OnEvent for AlbacoreCamera {
                 false => self.4 = None,
             }
         } else if let Some(TakePhotoEvent) = event.downcast_ref::<TakePhotoEvent>() {
-            if let Some(rgba) = &self.3 {
+            if self.4.is_some() {
+                let rgba = self.exposure_stack();
                 ctx.trigger_event(NewPhotoEvent(rgba.clone()));
                 let mut guard = ctx.get::<LensPlugin>();
                 let plugin = guard.get().0;
                 let img = EncodedImage::encode_rgba(rgba.clone());
                 plugin.request(LensRequest::SavePhoto(img, (rgba.width() as f32, rgba.height() as f32)));
+            } else {
+                if let Some(rgba) = &self.3 {
+                    ctx.trigger_event(NewPhotoEvent(rgba.clone()));
+                    let mut guard = ctx.get::<LensPlugin>();
+                    let plugin = guard.get().0;
+                    let img = EncodedImage::encode_rgba(rgba.clone());
+                    plugin.request(LensRequest::SavePhoto(img, (rgba.width() as f32, rgba.height() as f32)));
+                }
             }
         }
         true

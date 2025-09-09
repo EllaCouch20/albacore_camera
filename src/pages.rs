@@ -1,5 +1,5 @@
-use pelican_ui::{resources, Component, Context};
-use pelican_ui::drawable::{Align, Drawable, Component, Image, ShapeType};
+use pelican_ui::{Component, Context};
+use pelican_ui::drawable::{Align, Drawable, Component};
 use pelican_ui::layout::{Area, SizeRequest, Layout};
 use pelican_ui::events::{Event, OnEvent, TickEvent};
 use pelican_ui::LayoutResources;
@@ -7,25 +7,25 @@ use pelican_ui::hardware::ImageSettings;
 use image::RgbaImage;
 
 use pelican_ui_std::{
-    IconButton, ExpandableText,
-    Stack, RoundedRectangle, 
+    IconButton,
+    Stack, 
     AppPage, ExpandableImage, 
     Size, Offset, Padding,
-    Header, Column, NavigateEvent,
-    Page, Content, Slider, Bumper,
-    Text, TextStyle, AspectRatioImage, EncodedImage,
+    Header, NavigateEvent,
+    Page, Content, Bumper,
+    Text, TextStyle,
 };
 
 use crate::events::{SetCameraSetting, NewPhotoEvent};
-use crate::events::{ResetSetting, OpenSettingsEvent, NewSettingSelectedEvent, TakePhotoEvent, SelectImageEvent, SettingsSelect, PhotoBurstEvent};
-use crate::components::{AlbacoreCamera, CameraBumper, EditSettingsBumper, PhotoWrap, CameraRollButton};
+use crate::events::{ResetSetting, OpenSettingsEvent, SelectImageEvent, SettingsSelect, PhotoBurstEvent};
+use crate::components::{AlbacoreCamera, CameraBumper, EditSettingsBumper, PhotoWrap};
 
 #[derive(Debug, Component)]
 pub struct CameraHome(Stack, Page, #[skip] Option<String>, #[skip] Vec<RgbaImage>, #[skip] bool);
 
 impl AppPage for CameraHome {
     fn has_nav(&self) -> bool { true }
-    fn navigate(mut self: Box<Self>, ctx: &mut Context, index: usize) -> Result<Box<dyn AppPage>, Box<dyn AppPage>> { 
+    fn navigate(self: Box<Self>, ctx: &mut Context, index: usize) -> Result<Box<dyn AppPage>, Box<dyn AppPage>> { 
         match index {
             0 => Ok(Box::new(CameraRoll::new(ctx, self.3.clone()))),
             _ => Err(self),
@@ -124,7 +124,7 @@ impl OnEvent for CameraHome {
                     SetCameraSetting::Brightness(p) => camera.set_brightness((((p/100.0)*200.0)-100.0) as i16),
                     SetCameraSetting::Contrast(p) => camera.set_contrast(((p/100.0)*2.0)-1.0),
                     SetCameraSetting::Saturation(p) => camera.set_saturation(((p/100.0)*2.0)-1.0),
-                    SetCameraSetting::Gamma(p) => camera.set_gamma((0.1+(p/100.0)*(3.0-0.1))),
+                    SetCameraSetting::Gamma(p) => camera.set_gamma(0.1+(p/100.0)*(3.0-0.1)),
                     SetCameraSetting::Exposure(p) => camera.set_exposure(((p/100.0)*4.0)-2.0),
                     SetCameraSetting::Temperature(p) => camera.set_temperature(2000.0+(p/100.0)*8000.0),
                     SetCameraSetting::WhiteBalanceR(p) => camera.set_white_balance_r(0.5+(p/100.0)*1.5),
@@ -186,11 +186,11 @@ impl SettingsValue {
     pub fn event(i: String) -> Box<dyn FnMut(&mut Context, f32)> {
         match i.as_str() {
             "brightness" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("Brightness action: {}", p);
+                println!("Brightness action: {p}");
                 ctx.trigger_event(SetCameraSetting::Brightness(p))
             }),
             "saturation" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("Saturation action: {}", p);
+                println!("Saturation action: {p}");
                 ctx.trigger_event(SetCameraSetting::Saturation(p))
             }),
             // "gamma" => Box::new(|ctx: &mut Context, p: f32| {
@@ -198,39 +198,43 @@ impl SettingsValue {
             //     ctx.trigger_event(SetCameraSetting::Gamma(p))
             // }),
             "exposure" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("Exposure action: {}", p);
+                println!("Exposure action: {p}");
                 ctx.trigger_event(SetCameraSetting::Exposure(p))
             }),
             "contrast" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("Contrast action: {}", p);
+                println!("Contrast action: {p}");
                 ctx.trigger_event(SetCameraSetting::Contrast(p))
             }),
             "temperature" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("Temperature action: {}", p);
+                println!("Temperature action: {p}");
                 ctx.trigger_event(SetCameraSetting::Temperature(p))
             }),
             "white_balance_r" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("WhiteBalanceR action: {}", p);
+                println!("WhiteBalanceR action: {p}");
                 ctx.trigger_event(SetCameraSetting::WhiteBalanceR(p))
             }),
             "white_balance_g" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("WhiteBalanceG action: {}", p);
+                println!("WhiteBalanceG action: {p}");
                 ctx.trigger_event(SetCameraSetting::WhiteBalanceG(p))
             }),
             "white_balance_b" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("WhiteBalanceB action: {}", p);
+                println!("WhiteBalanceB action: {p}");
                 ctx.trigger_event(SetCameraSetting::WhiteBalanceB(p))
             }),
             "exposure_duration" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("Exposure dur action: {}", p);
+                println!("Exposure dur action: {p}");
                 ctx.trigger_event(SetCameraSetting::ExposureDur(p))
             }),
             "exposure_iso" => Box::new(|ctx: &mut Context, p: f32| {
-                println!("ISO action: {}", p);
+                println!("ISO action: {p}");
                 ctx.trigger_event(SetCameraSetting::ExposureIso(p))
             }),
+            "exposure_stacking" => Box::new(|ctx: &mut Context, p: f32| {
+                println!("Exposure stacking action: {p}");
+                ctx.trigger_event(SetCameraSetting::ExposureStacking(p > 50.0))
+            }),
             _ => Box::new(move |ctx: &mut Context, p: f32| {
-                println!("Unknown event: {} with value: {}", i, p);
+                println!("Unknown event: {i} with value: {p}");
             }),
         }
     }
@@ -253,7 +257,7 @@ pub struct CameraRoll(Stack, Page, #[skip] Option<RgbaImage>, #[skip] Vec<RgbaIm
 
 impl AppPage for CameraRoll {
     fn has_nav(&self) -> bool { true }
-    fn navigate(mut self: Box<Self>, ctx: &mut Context, index: usize) -> Result<Box<dyn AppPage>, Box<dyn AppPage>> { 
+    fn navigate(self: Box<Self>, ctx: &mut Context, index: usize) -> Result<Box<dyn AppPage>, Box<dyn AppPage>> { 
         match index {
             0 => Ok(Box::new(CameraHome::new(ctx, None, self.3.clone()))),
             1 => Ok(Box::new(ViewPhoto::new(ctx, self.2.unwrap(), self.3.clone()))),

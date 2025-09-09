@@ -1,6 +1,5 @@
 use pelican_ui::events::Event;
-use pelican_ui::{resources, Context};
-use pelican_ui::drawable::Image;
+use pelican_ui::Context;
 use image::RgbaImage;
 
 #[derive(Debug, Clone)]

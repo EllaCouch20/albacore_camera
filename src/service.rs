@@ -6,7 +6,7 @@ use maverick_os::Cache;
 use pelican_ui::runtime::{Services, Service, ServiceList, ThreadContext, async_trait, self};
 use pelican_ui::{hardware};
 use pelican_ui::State;
-use pelican_ui::air::{Id, Service as AirService, Protocol, Validation, ChildrenValidation, HeaderInfo, RecordPath, Permissions};
+use pelican_ui::air::{Id, Protocol, Validation, ChildrenValidation, HeaderInfo, RecordPath, Permissions};
 // use pelican_ui_std::AvatarContent;
 
 // use std::collections::HashSet;
@@ -138,7 +138,7 @@ impl Service for LensSync {
     }
 
     async fn run(&mut self, ctx: &mut ThreadContext<Self::Send, Self::Receive>) -> Result<Option<Duration>, runtime::Error> {
-        let mut mutated = false;
+        let mutated = false;
 
         // for (_, path) in AirService::receive(ctx, self.cache.datetime).await?.into_iter() {
         //     // let uuid: Uuid = serde_json::from_slice(&AirService::read_private(ctx, path.clone()).await?.unwrap().0.payload).unwrap();
