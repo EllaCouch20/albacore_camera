@@ -16,9 +16,9 @@ chrono = { version = "0.4.40", features = ["serde"] }
 include_dir = "0.7.4"
 image = "0.25.6"
 tempfile = "3"
-maverick_os = "0.1.15"
-pelican_ui = "1.1.9"
-pelican_ui_std = "0.2.9"
+maverick_os = {path="../maverick_os"} #"0.1.15"
+pelican_ui = {path="../pelican_ui"} #"1.1.9"
+pelican_ui_std = {path="../pelican_ui_std"} #"0.2.9"
 
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
