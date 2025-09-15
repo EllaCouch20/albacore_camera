@@ -1,11 +1,21 @@
 use pelican_ui::events::Event;
 use pelican_ui::Context;
 use pelican_ui::hardware::ExposureMode;
+use image::RgbaImage;
 
 #[derive(Debug, Clone)]
 pub struct TakePhotoEvent;
 
 impl Event for TakePhotoEvent {
+    fn pass(self: Box<Self>, _ctx: &mut Context, children: Vec<((f32, f32), (f32, f32))>) -> Vec<Option<Box<dyn Event>>> {
+        children.into_iter().map(|_| Some(self.clone() as Box<dyn Event>)).collect()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ResetSetting;
+
+impl Event for ResetSetting {
     fn pass(self: Box<Self>, _ctx: &mut Context, children: Vec<((f32, f32), (f32, f32))>) -> Vec<Option<Box<dyn Event>>> {
         children.into_iter().map(|_| Some(self.clone() as Box<dyn Event>)).collect()
     }
@@ -58,6 +68,16 @@ impl Event for SetSettingEvent {
 pub struct SelectImageEvent(pub RgbaImage);
 
 impl Event for SelectImageEvent {
+    fn pass(self: Box<Self>, _ctx: &mut Context, children: Vec<((f32, f32), (f32, f32))>) -> Vec<Option<Box<dyn Event>>> {
+        children.into_iter().map(|_| Some(self.clone() as Box<dyn Event>)).collect()
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct NewPhotoEvent(pub RgbaImage);
+
+impl Event for NewPhotoEvent {
     fn pass(self: Box<Self>, _ctx: &mut Context, children: Vec<((f32, f32), (f32, f32))>) -> Vec<Option<Box<dyn Event>>> {
         children.into_iter().map(|_| Some(self.clone() as Box<dyn Event>)).collect()
     }

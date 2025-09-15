@@ -4,7 +4,7 @@ use pelican_ui::layout::{Area, SizeRequest, Layout};
 use pelican_ui::events::{Event, OnEvent, TickEvent, MouseEvent, MouseState};
 
 // use crate::pages::CameraRoll;
-use crate::events::{TakePhotoEvent, SettingsSelect, OpenSettingsEvent, EnumeratorSelectEvent};
+use crate::events::{ResetSetting, TakePhotoEvent, SettingsSelect, OpenSettingsEvent, EnumeratorSelectEvent, SelectImageEvent};
 use crate::MyCameraRoll;
 use image::RgbaImage;
 
@@ -50,6 +50,8 @@ impl OnEvent for CameraRollButton {
                 self.1 = Image{shape: ShapeType::RoundedRectangle(0.0, (48.0, 48.0), 8.0, 0.0), image, color: None};
                 self.3 = photos.len();
             }
+        } else if let Some(MouseEvent { state: MouseState::Pressed, position: Some(_) }) = event.downcast_ref::<MouseEvent>() {
+            ctx.trigger_event(NavigateEvent(0))
         }
         true
     }
@@ -252,7 +254,7 @@ impl SettingsDetails {
         let label = ExpandableText::new(ctx, label, TextStyle::Primary, font_size.h5, Align::Left, None);
         let button = Button::new(ctx, None, None, Some("Reset"), None,
             ButtonSize::Medium, ButtonWidth::Hug, ButtonStyle::Primary,
-            ButtonState::Default, Offset::Center, |_ctx: &mut Context| {}, None
+            ButtonState::Default, Offset::Center, |ctx: &mut Context| {ctx.trigger_event(ResetSetting)}, None
         );
         SettingsDetails(Row::new(6.0, Offset::End, Size::Fit, Padding::default()), label, button)
     }

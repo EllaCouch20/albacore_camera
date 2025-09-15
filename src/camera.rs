@@ -11,7 +11,7 @@ use crate::service::LensRequest;
 use crate::LensPlugin;
 use crate::events::TakePhotoEvent;
 use crate::layout::SpaceEvenly;
-use crate::events::SetSettingEvent;
+use crate::events::{SetSettingEvent, NewPhotoEvent};
 
 use pelican_ui_std::{
     Stack, ExpandableImage,
@@ -50,7 +50,7 @@ impl OnEvent for AlbacoreCamera {
             }
         } else if let Some(TakePhotoEvent) = event.downcast_ref::<TakePhotoEvent>() {
             if let Some(rgba) = &self.5 {
-                // ctx.trigger_event(NewPhotoEvent(rgba.clone()));
+                ctx.trigger_event(NewPhotoEvent(rgba.clone()));
                 let mut guard = ctx.get::<LensPlugin>();
                 let plugin = guard.get().0;
                 let img = EncodedImage::encode_rgba(rgba.clone());
