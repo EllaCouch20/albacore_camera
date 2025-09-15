@@ -1,12 +1,12 @@
-use std::collections::BTreeMap;
-use std::sync::LazyLock;
+// use std::collections::BTreeMap;
+// use std::sync::LazyLock;
 use std::time::Duration;
 
-use maverick_os::Cache;
+// use maverick_os::Cache;
 use pelican_ui::runtime::{Services, Service, ServiceList, ThreadContext, async_trait, self};
 use pelican_ui::{hardware};
 use pelican_ui::State;
-use pelican_ui::air::{Id, Protocol, Validation, ChildrenValidation, HeaderInfo, RecordPath, Permissions};
+// use pelican_ui::air::{Id, Protocol, Validation, ChildrenValidation, HeaderInfo, Permissions};
 // use pelican_ui_std::AvatarContent;
 
 // use std::collections::HashSet;
@@ -17,25 +17,25 @@ use chrono::{Utc, DateTime};
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct MyCameraRoll(pub Vec<(String, (f32, f32))>);
 
-static PHOTOS: LazyLock<Id> = LazyLock::new(|| Id::hash(&"PhotosV1".to_string()));
-static PHOTO: LazyLock<Id> = LazyLock::new(|| Id::hash(&"PhotoV1".to_string()));
-static MY_PHOTOS: LazyLock<Id> = LazyLock::new(|| Id::hash(&"MYPHOTOS".to_string()));
+// static PHOTOS: LazyLock<Id> = LazyLock::new(|| Id::hash(&"PhotosV1".to_string()));
+// static PHOTO: LazyLock<Id> = LazyLock::new(|| Id::hash(&"PhotoV1".to_string()));
+// static MY_PHOTOS: LazyLock<Id> = LazyLock::new(|| Id::hash(&"MYPHOTOS".to_string()));
 
-const PHOTOS_PERMISSIONS: Permissions = Permissions::new(Some((true, true)), None, BTreeMap::new());
-const PHOTO_PERMISSIONS: Permissions = Permissions::new(None, None, BTreeMap::new());
+// const PHOTOS_PERMISSIONS: Permissions = Permissions::new(Some((true, true)), None, BTreeMap::new());
+// const PHOTO_PERMISSIONS: Permissions = Permissions::new(None, None, BTreeMap::new());
 
-static PHOTOS_PROTOCOL: LazyLock<Protocol> = LazyLock::new(|| {
-    let cv = ChildrenValidation::new(vec![*PHOTO], true, true, false);
-    let validation = Validation::new(Some(cv), None, BTreeMap::new(), false);
-    let header = HeaderInfo::new(None, BTreeMap::new(), Vec::new());
-    Protocol::new(validation, header, *PHOTOS)
-});
+// static PHOTOS_PROTOCOL: LazyLock<Protocol> = LazyLock::new(|| {
+//     let cv = ChildrenValidation::new(vec![*PHOTO], true, true, false);
+//     let validation = Validation::new(Some(cv), None, BTreeMap::new(), false);
+//     let header = HeaderInfo::new(None, BTreeMap::new(), Vec::new());
+//     Protocol::new(validation, header, *PHOTOS)
+// });
 
-static PHOTO_PROTOCOL: LazyLock<Protocol> = LazyLock::new(|| {
-    let validation = Validation::new(None, None, BTreeMap::new(), false);
-    let header = HeaderInfo::new(None, BTreeMap::new(), Vec::new());
-    Protocol::new(validation, header, *PHOTO)
-});
+// static PHOTO_PROTOCOL: LazyLock<Protocol> = LazyLock::new(|| {
+//     let validation = Validation::new(None, None, BTreeMap::new(), false);
+//     let header = HeaderInfo::new(None, BTreeMap::new(), Vec::new());
+//     Protocol::new(validation, header, *PHOTO)
+// });
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum LensRequest {
@@ -119,8 +119,8 @@ impl Service for LensService {
 
 #[derive(Debug)]
 pub struct LensSync{
-    cache: LensCache,
-    init: bool 
+    // cache: LensCache,
+    // init: bool 
 }
 
 impl Services for LensSync {}
@@ -130,15 +130,15 @@ impl Service for LensSync {
     type Send = Vec<(String, (f32, f32))>;
     type Receive = ();
 
-    async fn new(hardware: &mut hardware::Context) -> Self {
+    async fn new(_hardware: &mut hardware::Context) -> Self {
         LensSync{
-            cache: LensCache::from_cache(&mut hardware.cache).await,
-            init: false
+            // cache: LensCache::from_cache(&mut hardware.cache).await,
+            // init: false
         }
     }
 
-    async fn run(&mut self, ctx: &mut ThreadContext<Self::Send, Self::Receive>) -> Result<Option<Duration>, runtime::Error> {
-        let mutated = false;
+    async fn run(&mut self, _ctx: &mut ThreadContext<Self::Send, Self::Receive>) -> Result<Option<Duration>, runtime::Error> {
+        // let mutated = false;
 
         // for (_, path) in AirService::receive(ctx, self.cache.datetime).await?.into_iter() {
         //     // let uuid: Uuid = serde_json::from_slice(&AirService::read_private(ctx, path.clone()).await?.unwrap().0.payload).unwrap();
@@ -199,7 +199,7 @@ impl Service for LensSync {
         Ok(Some(Duration::from_secs(1)))
     }
 
-    fn callback(state: &mut State, response: Self::Send) {
+    fn callback(_state: &mut State, _response: Self::Send) {
         // state.set(MyCameraRoll(response))
     }
 }
@@ -207,18 +207,17 @@ impl Service for LensSync {
 #[derive(Debug, Serialize, Deserialize)]
 struct LensCache {
     pub albums_idx: u32,
-    pub albums: BTreeMap<RecordPath, (Vec<(String, (f32, f32))>, u32)>,
     pub datetime: DateTime<Utc>,
 }
 
 impl LensCache {
-    pub async fn cache(&self, cache: &mut Cache) {
-        cache.set("LensCache", self).await;
-    }
+    // pub async fn cache(&self, cache: &mut Cache) {
+    //     cache.set("LensCache", self).await;
+    // }
 
-    pub async fn from_cache(cache: &mut Cache) -> Self {
-        cache.get("LensCache").await
-    }
+    // pub async fn from_cache(cache: &mut Cache) -> Self {
+    //     cache.get("LensCache").await
+    // }
 
 }
 
@@ -227,7 +226,6 @@ impl Default for LensCache {
         println!("LensCache as default");
         LensCache {
             albums_idx: 0,
-            albums: BTreeMap::new(),
             datetime: DateTime::UNIX_EPOCH,
         }
     }

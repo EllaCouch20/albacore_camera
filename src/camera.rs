@@ -2,7 +2,7 @@ use pelican_ui::{Component, Context};
 use pelican_ui::drawable::{Drawable, Component, Image};
 use pelican_ui::layout::{Area, SizeRequest, Layout};
 use pelican_ui::events::{Event, OnEvent, TickEvent};
-use pelican_ui::hardware::Camera;
+use pelican_ui::hardware::{Camera, CameraSettings};
 
 use image::RgbaImage;
 
@@ -11,6 +11,7 @@ use crate::service::LensRequest;
 use crate::LensPlugin;
 use crate::events::TakePhotoEvent;
 use crate::layout::SpaceEvenly;
+use crate::events::SetSettingEvent;
 
 use pelican_ui_std::{
     Stack, ExpandableImage,
@@ -55,10 +56,51 @@ impl OnEvent for AlbacoreCamera {
                 let img = EncodedImage::encode_rgba(rgba.clone());
                 plugin.request(LensRequest::SavePhoto(img, (rgba.width() as f32, rgba.height() as f32)));
             }
+        } else if let Some(setting) = event.downcast_ref::<SetSettingEvent>() {
+            if let Some(camera) = &mut self.4 {
+                if let Some(settings_arc) = camera.settings().as_mut() {
+                    let mut settings_guard = settings_arc.lock().unwrap();
+                    let settings: &mut CameraSettings = &mut settings_guard;
+
+                    match setting {
+                        SetSettingEvent::Brightness(p) => settings.set_brightness(*p),
+                        SetSettingEvent::ExposureMode(mode) => settings.set_exposure_mode(*mode),
+                        SetSettingEvent::CustomExposureTime(dur) => {
+                            let iso = settings.custom_exposure.unwrap_or_default().iso;
+                            settings.set_custom_exposure(*dur, iso)
+                        },
+                        SetSettingEvent::CustomExposureISO(iso) => {
+                            let dur = settings.custom_exposure.unwrap_or_default().duration;
+                            settings.set_custom_exposure(dur, *iso)
+                        },
+                        _ => {}
+                    }
+                }
+            }
         }
         true
     }
 }
+
+// set_brightness
+// set_contrast
+// set_saturation
+// set_sharpness
+// set_hue
+// set_noise_reduction
+// set_gamma
+// set_focus_distance
+// set_exposure_compensation
+// set_custom_exposure
+// set_white_balance_gains
+// set_zoom_factor
+// set_torch_enabled
+// set_hdr_enabled
+// set_stabilization_enabled
+// set_low_light_boost
+// set_scene_mode
+// set_focus_point_of_interest
+
 
 #[derive(Debug, Component)]
 pub struct FocusIndicator(Stack, Image);
@@ -116,3 +158,4 @@ impl ThirdsGridInner {
         ThirdsGridInner(layout, a, b)
     }
 }
+

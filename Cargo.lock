@@ -1995,6 +1995,7 @@ dependencies = [
  "objc2 0.6.1",
  "objc2-app-kit 0.3.1",
  "objc2-av-foundation",
+ "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-core-media",
  "objc2-core-video",
@@ -2437,6 +2438,7 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-core-image 0.3.1",
+ "objc2-core-media",
  "objc2-core-video",
  "objc2-foundation 0.3.1",
  "objc2-quartz-core 0.3.1",
@@ -2539,7 +2541,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c10c2894a6fed806ade6027bcd50662746363a9589d3ec9d9bef30a4e4bc166"
 dependencies = [
  "bitflags 2.9.0",
+ "block2 0.6.1",
  "dispatch2",
+ "libc",
  "objc2 0.6.1",
 ]
 

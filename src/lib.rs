@@ -83,7 +83,7 @@ impl Application for MyApp {
 
         let icons = vec![
             "brightness", "camera_roll", "contrast", 
-            "exposure_iso", "exposure_duration", 
+            "exposure", "exposure_duration", 
             "gamma", "saturation",
             "share", "sliders", "temperature",
             "white_balance_r", "white_balance_g", 
@@ -105,7 +105,7 @@ impl Application for MyApp {
 start!(MyApp);
 
 #[derive(Debug, Component)]
-pub struct App(Stack, Interface, #[skip] bool);
+pub struct App(Stack, Interface);
 
 impl App {
     pub fn new(ctx: &mut Context) -> Box<Self> {
@@ -119,7 +119,7 @@ impl App {
 
         let home = CameraHome::new(ctx, None, rgbas);
         let interface = Interface::new(ctx, Box::new(home), None, None);
-        Box::new(App(Stack::default(), interface, false))
+        Box::new(App(Stack::default(), interface))
     }
 
     pub fn load_photos<P: AsRef<Path>>(path: P) -> Vec<(String, (f32, f32))> {
