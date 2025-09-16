@@ -12,6 +12,7 @@ use crate::LensPlugin;
 use crate::events::TakePhotoEvent;
 use crate::layout::SpaceEvenly;
 use crate::events::{SetSettingEvent, NewPhotoEvent};
+use std::collections::VecDeque;
 
 use pelican_ui_std::{
     Stack, ExpandableImage,
@@ -21,7 +22,7 @@ use pelican_ui_std::{
 };
 
 #[derive(Debug, Component)]
-pub struct AlbacoreCamera(Stack, ExpandableImage, ThirdsGrid, FocusIndicator, #[skip] Option<Camera>, #[skip] Option<RgbaImage>);
+pub struct AlbacoreCamera(Stack, ExpandableImage, ThirdsGrid, FocusIndicator, #[skip] Option<Camera>, #[skip] Option<RgbaImage>, #[skip] Option<VecDeque<RgbaImage>>);
 
 impl AlbacoreCamera {
     pub fn new(ctx: &mut Context) -> Self {  
@@ -31,6 +32,7 @@ impl AlbacoreCamera {
             ThirdsGrid::new(ctx), 
             FocusIndicator::new(ctx),
             Camera::new_unprocessed().ok().map(|c| c.start()), 
+            None,
             None,
         )
     }
@@ -44,12 +46,49 @@ impl OnEvent for AlbacoreCamera {
             if let Some(ref mut camera) = self.4 {
                 if let Ok(raw_frame) = camera.frame() {
                     self.5 = Some(raw_frame.clone());
+                    if let Some(last_five) = &mut self.6 {
+                        if last_five.len() == 5 { last_five.pop_front(); }
+                        last_five.push_back(raw_frame.clone());
+                    }
                     let image = ctx.assets.add_image(raw_frame);
                     self.1.image().image = image;
                 }
             }
         } else if let Some(TakePhotoEvent) = event.downcast_ref::<TakePhotoEvent>() {
-            if let Some(rgba) = &self.5 {
+            
+            if let Some(current) = &self.5 {
+                let rgba = self.6.as_ref().and_then(|last_five| {
+                    if !last_five.is_empty() && last_five.iter().all(|frame| frame.dimensions() == current.dimensions()) {
+                        let mut out = current.clone();
+                        let total_frames = last_five.len() as f32 + 1.0;
+
+                        for (x, y, px_out) in out.enumerate_pixels_mut() {
+                            let mut r = px_out[0] as f32;
+                            let mut g = px_out[1] as f32;
+                            let mut b = px_out[2] as f32;
+                            let mut a = px_out[3] as f32;
+
+                            for frame in last_five {
+                                let px = frame.get_pixel(x, y);
+                                r += px[0] as f32;
+                                g += px[1] as f32;
+                                b += px[2] as f32;
+                                a += px[3] as f32;
+                            }
+
+                            *px_out = image::Rgba([
+                                (r / total_frames).clamp(0.0, 255.0) as u8,
+                                (g / total_frames).clamp(0.0, 255.0) as u8,
+                                (b / total_frames).clamp(0.0, 255.0) as u8,
+                                (a / total_frames).clamp(0.0, 255.0) as u8,
+                            ]);
+                        }
+                        Some(out)
+                    } else {
+                        None
+                    }
+                }).unwrap_or_else(|| current.clone());
+                
                 ctx.trigger_event(NewPhotoEvent(rgba.clone()));
                 let mut guard = ctx.get::<LensPlugin>();
                 let plugin = guard.get().0;
@@ -63,7 +102,17 @@ impl OnEvent for AlbacoreCamera {
                     let settings: &mut CameraSettings = &mut settings_guard;
 
                     match setting {
+                        // SetSettingEvent::ToggleFlashlight => camera.toggle_flashlight(),
+                        SetSettingEvent::ToggleExposureStacking => {
+                            if self.6.is_some() {self.6 = None}
+                            if self.6.is_none() {self.6 = Some(VecDeque::with_capacity(5))}
+                        },
                         SetSettingEvent::Brightness(p) => settings.set_brightness(*p),
+                        SetSettingEvent::Saturation(p) => settings.set_saturation(*p),
+                        SetSettingEvent::Hue(p) => settings.set_hue(*p),
+                        SetSettingEvent::Contrast(p) => settings.set_contrast(*p),
+                        SetSettingEvent::Sharpness(p) => settings.set_sharpness(*p),
+                        SetSettingEvent::NoiseReduction(p) => settings.set_noise_reduction(*p),
                         SetSettingEvent::ExposureMode(mode) => settings.set_exposure_mode(*mode),
                         SetSettingEvent::CustomExposureTime(dur) => {
                             let iso = settings.custom_exposure.unwrap_or_default().iso;
@@ -73,6 +122,13 @@ impl OnEvent for AlbacoreCamera {
                             let dur = settings.custom_exposure.unwrap_or_default().duration;
                             settings.set_custom_exposure(dur, *iso)
                         },
+                        SetSettingEvent::FocusMode(mode) => settings.set_focus_mode(*mode),
+                        SetSettingEvent::CustomFocusDistance(dist) => settings.set_focus_distance(*dist),
+                        SetSettingEvent::WhiteBalanceMode(mode) => settings.set_white_balance_mode(*mode),
+                        SetSettingEvent::WhiteBalanceGainsRed(r) => settings.set_white_balance_gains_red(*r),
+                        SetSettingEvent::WhiteBalanceGainsGreen(g) => settings.set_white_balance_gains_green(*g),
+                        SetSettingEvent::WhiteBalanceGainsBlue(b) => settings.set_white_balance_gains_blue(*b),
+
                         _ => {}
                     }
                 }

@@ -2,7 +2,7 @@ use pelican_ui::{Component, Context, LayoutResources};
 use pelican_ui::drawable::{Drawable, Component};
 use pelican_ui::layout::{Area, SizeRequest, Layout};
 use pelican_ui::events::{OnEvent, Event};
-use pelican_ui::hardware::{CameraSettings, ExposureMode};
+use pelican_ui::hardware::{CameraSettings, ExposureMode, FocusMode, WhiteBalanceMode};
 
 use image::RgbaImage;
 
@@ -43,7 +43,7 @@ impl CameraHome {
         let camera = camera.unwrap_or(AlbacoreCamera::new(ctx));
         let content = Content::new(ctx, Offset::Start, vec![Box::new(camera)]);
         let flip = Some(IconButton::navigation(ctx, "flip_camera", Box::new(|_ctx: &mut Context| {})));
-        let flash = Some(IconButton::navigation(ctx, "flash", Box::new(|_ctx: &mut Context| {})));
+        let flash = Some(IconButton::navigation(ctx, "flash", Box::new(|ctx: &mut Context| ctx.trigger_event(SetSettingEvent::ToggleFlashlight))));
         let header = Header::stack(ctx, flip, "", flash);
         CameraHome(Stack::default(), Page::new(Some(header), content, Some(AlbacoreBumpers::default(ctx))), roll, String::new())
     }
@@ -63,7 +63,7 @@ impl OnEvent for CameraHome {
                 let settings: &mut CameraSettings = &mut settings_guard;
                 let default = CameraSettings::default();
 
-                println!("RESETING {:?}", self.3);
+                println!("RESETTING {:?}", self.3);
 
                 match self.3.as_str() {
                     "brightness" => settings.brightness = default.brightness,
@@ -71,6 +71,20 @@ impl OnEvent for CameraHome {
                         settings.exposure_mode = default.exposure_mode;
                         settings.custom_exposure = default.custom_exposure;
                     },
+                    "focus" | "focus_custom" => {
+                        settings.focus_mode = default.focus_mode;
+                        settings.focus_distance = default.focus_distance;
+                    },
+                    "white_balance" | "white_balance_custom" => {
+                        settings.white_balance_mode = default.white_balance_mode;
+                        settings.white_balance_gains = default.white_balance_gains;
+                    },
+                    "saturation" => settings.saturation = default.saturation,
+                    "hue" => settings.hue = default.hue,
+                    "contrast" => settings.contrast = default.contrast,
+                    "sharpness" => settings.sharpness = default.sharpness,
+                    "noise" => settings.noise_reduction = default.noise_reduction,
+                    "exposure_stacking" => settings.exposure_stacking = default.exposure_stacking,
                     _ => {}
                 }
                 ctx.trigger_event(SettingsSelect(self.3.to_string()));
@@ -86,9 +100,39 @@ impl OnEvent for CameraHome {
             match setting.as_str() {
                 "brightness" => {
                     let closure = move |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::Brightness(p));
-                    bumper.set_first_slider(ctx, Some((Box::new(closure), s.brightness.unwrap_or(0.0), "Brightness")));
-                    bumper.set_second_slider(ctx, None);
                     bumper.set_enumerator(ctx, None);
+                    bumper.set_details(ctx, "Brightness");
+                    bumper.set_sliders(ctx, Some(vec![(Box::new(closure), s.brightness.unwrap_or(0.0), None)]));
+                },
+                "saturation" => {
+                    let closure = move |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::Saturation(p));
+                    bumper.set_enumerator(ctx, None);
+                    bumper.set_details(ctx, "Saturation");
+                    bumper.set_sliders(ctx, Some(vec![(Box::new(closure), s.saturation.unwrap_or(0.0), None)]));
+                }
+                "hue" => {
+                    let closure = move |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::Hue(p));
+                    bumper.set_enumerator(ctx, None);
+                    bumper.set_details(ctx, "Hue");
+                    bumper.set_sliders(ctx, Some(vec![(Box::new(closure), s.hue.unwrap_or(0.0), None)]));
+                }
+                "contrast" => {
+                    let closure = move |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::Contrast(p));
+                    bumper.set_enumerator(ctx, None);
+                    bumper.set_details(ctx, "Contrast");
+                    bumper.set_sliders(ctx, Some(vec![(Box::new(closure), s.contrast.unwrap_or(0.0), None)]));
+                }
+                "sharpness" => {
+                    let closure = move |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::Sharpness(p));
+                    bumper.set_enumerator(ctx, None);
+                    bumper.set_details(ctx, "Sharpness");
+                    bumper.set_sliders(ctx, Some(vec![(Box::new(closure), s.sharpness.unwrap_or(0.0), None)]));
+                }
+                "noise" => {
+                    let closure = move |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::NoiseReduction(p));
+                    bumper.set_enumerator(ctx, None);
+                    bumper.set_details(ctx, "Noise Reduction");
+                    bumper.set_sliders(ctx, Some(vec![(Box::new(closure), s.noise_reduction.unwrap_or(0.0), None)]));
                 },
                 "exposure" => {
                     let items: Vec<(&str, Box<dyn FnMut(&mut Context)>)> = vec![
@@ -106,25 +150,26 @@ impl OnEvent for CameraHome {
                         })),
                     ];
 
+                    bumper.set_details(ctx, "Exposure Mode");
                     match s.exposure_mode {
                         ExposureMode::Auto => {
-                            bumper.set_enumerator(ctx, Some((items, "Exposure Mode", 0)));
-                            bumper.set_first_slider(ctx, None);
-                            bumper.set_second_slider(ctx, None);
+                            bumper.set_enumerator(ctx, Some((items, 0)));
+                            bumper.set_sliders(ctx, None);
                         },
                         ExposureMode::Continuous => {
-                            bumper.set_enumerator(ctx, Some((items, "Exposure Mode", 1)));
-                            bumper.set_first_slider(ctx, None);
-                            bumper.set_second_slider(ctx, None);
+                            bumper.set_enumerator(ctx, Some((items, 1)));
+                            bumper.set_sliders(ctx, None);
                         },
                         ExposureMode::Custom => {
                             let duration = |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::CustomExposureTime(p));
                             let iso = |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::CustomExposureISO(p));
                             let values = s.custom_exposure.unwrap_or_default();
 
-                            bumper.set_enumerator(ctx, Some((items, "Exposure Mode", 2)));
-                            bumper.set_first_slider(ctx, Some((Box::new(duration), values.duration, "Duration")));
-                            bumper.set_second_slider(ctx, Some((Box::new(iso), values.iso, "ISO")));
+                            bumper.set_enumerator(ctx, Some((items, 2)));
+                            bumper.set_sliders(ctx, Some(vec![
+                                (Box::new(duration), values.duration, Some("Duration")),
+                                (Box::new(iso), values.iso, Some("ISO"))
+                            ]));
                         },
                     }
                 },
@@ -134,12 +179,148 @@ impl OnEvent for CameraHome {
                         let iso = move |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::CustomExposureISO(p));
                         let values = s.custom_exposure.unwrap_or_default();
 
-                        bumper.set_first_slider(ctx, Some((Box::new(duration), values.duration, "Duration")));
-                        bumper.set_second_slider(ctx, Some((Box::new(iso), values.iso, "ISO")));
+                        bumper.set_sliders(ctx, Some(vec![
+                            (Box::new(duration), values.duration, Some("Duration")),
+                            (Box::new(iso), values.iso, Some("ISO"))
+                        ]));
                     } else {
                         ctx.trigger_event(SettingsSelect("exposure".to_string()))
                     }
+                },
+                "focus" => {
+                    let items: Vec<(&str, Box<dyn FnMut(&mut Context)>)> = vec![
+                        ("Auto", Box::new(|ctx: &mut Context| {
+                            ctx.trigger_event(SetSettingEvent::FocusMode(FocusMode::Auto));
+                            ctx.trigger_event(SettingsSelect("focus".to_string()));
+                        })),
+                        ("Continuous", Box::new(|ctx: &mut Context| {
+                            ctx.trigger_event(SetSettingEvent::FocusMode(FocusMode::Continuous));
+                            ctx.trigger_event(SettingsSelect("focus".to_string()));
+                        })),
+                        ("Locked", Box::new(|ctx: &mut Context| {
+                            ctx.trigger_event(SetSettingEvent::FocusMode(FocusMode::Locked));
+                            ctx.trigger_event(SettingsSelect("focus".to_string()))
+                        })),
+                        ("Manual", Box::new(|ctx: &mut Context| {
+                            ctx.trigger_event(SetSettingEvent::FocusMode(FocusMode::Manual));
+                            ctx.trigger_event(SettingsSelect("focus_custom".to_string()))
+                        })),
+                    ];
+
+                    bumper.set_details(ctx, "Focus Mode");
+                    match s.focus_mode {
+                        FocusMode::Auto => {
+                            bumper.set_enumerator(ctx, Some((items, 0)));
+                            bumper.set_sliders(ctx, None);
+                        },
+                        FocusMode::Continuous => {
+                            bumper.set_enumerator(ctx, Some((items, 1)));
+                            bumper.set_sliders(ctx, None);
+                        },
+                        FocusMode::Locked => {
+                            bumper.set_enumerator(ctx, Some((items, 2)));
+                            bumper.set_sliders(ctx, None);
+                        },
+                        FocusMode::Manual => {
+                            let distance = |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::CustomFocusDistance(p));
+                            let value = s.focus_distance.unwrap_or_default();
+
+                            bumper.set_enumerator(ctx, Some((items, 3)));
+                            bumper.set_sliders(ctx, Some(vec![(Box::new(distance), value, Some("Distance"))]));
+                        },
+                    }
+                },
+                "focus_custom" => {
+                    if s.focus_mode == FocusMode::Manual {
+                        let distance = |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::CustomFocusDistance(p));
+                        let value = s.focus_distance.unwrap_or_default();
+
+                        bumper.set_sliders(ctx, Some(vec![(Box::new(distance), value, Some("Distance"))]));
+                    } else {
+                        ctx.trigger_event(SettingsSelect("focus".to_string()))
+                    }
                 }
+                "white_balance" => {
+                    let items: Vec<(&str, Box<dyn FnMut(&mut Context)>)> = vec![
+                        ("Auto", Box::new(|ctx: &mut Context| {
+                            ctx.trigger_event(SetSettingEvent::WhiteBalanceMode(WhiteBalanceMode::Auto));
+                            ctx.trigger_event(SettingsSelect("white_balance".to_string()));
+                        })),
+                        ("Locked", Box::new(|ctx: &mut Context| {
+                            ctx.trigger_event(SetSettingEvent::WhiteBalanceMode(WhiteBalanceMode::Locked));
+                            ctx.trigger_event(SettingsSelect("white_balance".to_string()))
+                        })),
+                        ("Custom", Box::new(|ctx: &mut Context| {
+                            ctx.trigger_event(SetSettingEvent::WhiteBalanceMode(WhiteBalanceMode::Custom));
+                            ctx.trigger_event(SettingsSelect("white_balance_custom".to_string()))
+                        })),
+                    ];
+
+                    bumper.set_details(ctx, "White Balance Mode");
+                    match s.white_balance_mode {
+                        WhiteBalanceMode::Auto => {
+                            bumper.set_enumerator(ctx, Some((items, 0)));
+                            bumper.set_sliders(ctx, None);
+                        },
+                        WhiteBalanceMode::Locked => {
+                            bumper.set_enumerator(ctx, Some((items, 1)));
+                            bumper.set_sliders(ctx, None);
+                        },
+                        WhiteBalanceMode::Custom => {
+                            let red = |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::WhiteBalanceGainsRed(p));
+                            let green = |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::WhiteBalanceGainsGreen(p));
+                            let blue = |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::WhiteBalanceGainsBlue(p));
+                            let values = s.white_balance_gains.unwrap_or_default();
+
+                            bumper.set_enumerator(ctx, Some((items, 2)));
+                            bumper.set_sliders(ctx, Some(vec![
+                                (Box::new(red), values.red, Some("Red")),
+                                (Box::new(green), values.green, Some("Green")),
+                                (Box::new(blue), values.blue, Some("Blue")),
+                            ]));
+                        },
+                    }
+                },
+                "white_balance_custom" => {
+                    if s.white_balance_mode == WhiteBalanceMode::Custom {
+                        let red = |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::WhiteBalanceGainsRed(p));
+                        let green = |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::WhiteBalanceGainsGreen(p));
+                        let blue = |ctx: &mut Context, p: f32| ctx.trigger_event(SetSettingEvent::WhiteBalanceGainsBlue(p));
+                        let values = s.white_balance_gains.unwrap_or_default();
+
+                        bumper.set_sliders(ctx, Some(vec![
+                            (Box::new(red), values.red, Some("Red")),
+                            (Box::new(green), values.green, Some("Green")),
+                            (Box::new(blue), values.blue, Some("Blue")),
+                        ]));
+                    } else {
+                        ctx.trigger_event(SettingsSelect("white_balance".to_string()))
+                    }
+                }
+                "exposure_stacking" => {
+                    let items: Vec<(&str, Box<dyn FnMut(&mut Context)>)> = vec![
+                        ("On", Box::new(|ctx: &mut Context| {
+                            ctx.trigger_event(SetSettingEvent::ToggleExposureStacking);
+                            ctx.trigger_event(SettingsSelect("exposure_stacking".to_string()));
+                        })),
+                        ("Off", Box::new(|ctx: &mut Context| {
+                            ctx.trigger_event(SetSettingEvent::ToggleExposureStacking);
+                            ctx.trigger_event(SettingsSelect("exposure_stacking".to_string()));
+                        })),
+                    ];
+
+                    bumper.set_details(ctx, "Exposure Stacking");
+                    match s.exposure_stacking {
+                        true => {
+                            bumper.set_enumerator(ctx, Some((items, 0)));
+                            bumper.set_sliders(ctx, None);
+                        },
+                        false => {
+                            bumper.set_enumerator(ctx, Some((items, 1)));
+                            bumper.set_sliders(ctx, None);
+                        },
+                    }
+                },
                 _ => {}
             }
         }

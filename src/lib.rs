@@ -86,10 +86,10 @@ impl Application for MyApp {
             "exposure", "exposure_duration", 
             "gamma", "saturation",
             "share", "sliders", "temperature",
-            "white_balance_r", "white_balance_g", 
-            "white_balance_b", "camera_shutter",
+            "white_balance", "camera_shutter",
             "camera_shutter_active", "exposure_stacking",
-            "flash", "flip_camera"
+            "flash", "flip_camera", "focus", "hue",
+            "sharpness", "noise",
         ];
 
         icons.into_iter().for_each(|p| theme.icons.insert(ctx, p));

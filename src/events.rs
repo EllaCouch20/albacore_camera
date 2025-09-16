@@ -1,6 +1,6 @@
 use pelican_ui::events::Event;
 use pelican_ui::Context;
-use pelican_ui::hardware::ExposureMode;
+use pelican_ui::hardware::{ExposureMode, FocusMode, WhiteBalanceMode};
 use image::RgbaImage;
 
 #[derive(Debug, Clone)]
@@ -52,9 +52,22 @@ impl Event for EnumeratorSelectEvent {
 #[derive(Debug, Clone)]
 pub enum SetSettingEvent {
     Brightness(f32),
+    Saturation(f32),
+    Hue(f32),
+    Contrast(f32),
+    NoiseReduction(f32),
+    Sharpness(f32),
     ExposureMode(ExposureMode),
     CustomExposureTime(f32),
-    CustomExposureISO(f32)
+    CustomExposureISO(f32),
+    FocusMode(FocusMode),
+    CustomFocusDistance(f32),
+    WhiteBalanceMode(WhiteBalanceMode),
+    WhiteBalanceGainsRed(f32),
+    WhiteBalanceGainsGreen(f32),
+    WhiteBalanceGainsBlue(f32),
+    ToggleFlashlight,
+    ToggleExposureStacking
 }
 
 impl Event for SetSettingEvent {
@@ -72,7 +85,6 @@ impl Event for SelectImageEvent {
         children.into_iter().map(|_| Some(self.clone() as Box<dyn Event>)).collect()
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct NewPhotoEvent(pub RgbaImage);

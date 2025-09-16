@@ -92,16 +92,13 @@ impl OnEvent for CameraShutterButton {
 pub struct SettingsBumper(
     Column, SettingsOptions, 
     Bin<Stack, Rectangle>, 
-    Option<SettingsDetails>, 
+    SettingsDetails, 
     Option<EnumeratorSelector>, 
-    Option<SettingsDetails>, 
-    Option<Slider>, 
-    Option<SettingsDetails>, 
-    Option<Slider>
+    Option<SliderColumn>, 
 );
 
-type SettingsSliderData<'a> = (Box<dyn FnMut(&mut Context, f32)>, f32, &'a str);
-type SettingsEnumeratorData<'a> = (Vec<(&'a str, Box<dyn FnMut(&mut Context)>)>, &'a str, usize);
+type SettingsSliderData<'a> = (SettingClosure, f32, Option<&'a str>);
+type SettingsEnumeratorData<'a> = (Vec<(&'a str, Box<dyn FnMut(&mut Context)>)>, usize);
 
 impl SettingsBumper {
     pub fn new(ctx: &mut Context, closure: SettingClosure, val: f32, label: &str) -> Self {
@@ -111,60 +108,43 @@ impl SettingsBumper {
             Column::new(16.0, Offset::Start, Size::fill(), Padding::default()),
             SettingsOptions::new(ctx),
             Bin(layout, Rectangle::new(color, 0.0)),
+            SettingsDetails::new(ctx, label, true),
             None,
-            None,
-            Some(SettingsDetails::new(ctx, label)),
-            Some(Slider::new(ctx, val, None, None, closure)),
-            None,
-            None,
+            Some(SliderColumn::new(ctx, vec![(closure, val, None)])),
         )
     }
 
-    pub fn set_first_slider(&mut self, ctx: &mut Context, 
-        slider_a: Option<SettingsSliderData>,
-    ) {
-        match slider_a {
-            Some((closure, val, label)) => {
-                self.5 = Some(SettingsDetails::new(ctx, label));
-                self.6 = Some(Slider::new(ctx, val, None, None, closure));
-            },
-            None => {
-                self.5 = None;
-                self.6 = None;
-            }
-        }
+    pub fn set_details(&mut self, ctx: &mut Context, label: &str) {
+        self.3 = SettingsDetails::new(ctx, label, true);
     }
 
-    pub fn set_second_slider(&mut self, ctx: &mut Context,
-        slider_b: Option<SettingsSliderData>,
-    ) {
-        match slider_b {
-            Some((closure, val, label)) => {
-                self.7 = Some(SettingsDetails::new(ctx, label));
-                self.8 = Some(Slider::new(ctx, val, None, None, closure));
-            },
-            None => {
-                self.7 = None;
-                self.8 = None;
-            }
-        }
+    pub fn set_sliders(&mut self, ctx: &mut Context, sliders: Option<Vec<SettingsSliderData>>) {
+        self.5 = sliders.map(|items| SliderColumn::new(ctx, items));
     }
-
+    
     pub fn set_enumerator(&mut self, ctx: &mut Context, enumerator: Option<SettingsEnumeratorData>) {
-        match enumerator {
-            Some((items, label, index)) => {
-                self.3 = Some(SettingsDetails::new(ctx, label));
-                self.4 = Some(EnumeratorSelector::new(ctx, items, index));
-            },
-            None => {
-                self.3 = None;
-                self.4 = None;
-            }
-        }
+        self.4 = enumerator.map(|(e, i)| EnumeratorSelector::new(ctx, e, i));
     }
 }
 
 impl OnEvent for SettingsBumper {}
+
+
+#[derive(Debug, Component)]
+pub struct SliderColumn(Column, Vec<Box<dyn Drawable>>);
+
+impl SliderColumn {
+    pub fn new(ctx: &mut Context, data: Vec<SettingsSliderData>) -> Self {
+        let mut items: Vec<Box<dyn Drawable>> = Vec::new();
+        data.into_iter().for_each(|(closure, value, label)| {
+            label.map(|l| items.push(Box::new(SettingsDetails::new(ctx, l, false))));
+            items.push(Box::new(Slider::new(ctx, value, None, None, closure)))
+        });
+        SliderColumn(Column::center(12.0), items) 
+    }
+}
+
+impl OnEvent for SliderColumn {}
 
 #[derive(Debug, Component)]
 pub struct SettingsOptions(Scroll, SettingsOptionsContent);
@@ -193,7 +173,13 @@ pub struct SettingsOptionsContent(Row, Vec<SettingsButton>);
 
 impl SettingsOptionsContent {
     pub fn new(ctx: &mut Context) -> Self {
-        let icons = vec!["brightness", "exposure"];
+        let icons = vec![
+            "brightness", "exposure", 
+            "focus", "white_balance", 
+            "saturation", "hue", 
+            "contrast", "sharpness",
+            "noise", "exposure_stacking"
+        ];
 
         let mut icon_buttons = vec![SettingsButton::new("left".to_string(), IconButtonPreset::new(ctx, "left", false, |ctx: &mut Context| ctx.trigger_event(OpenSettingsEvent(false))))];
         icons.into_iter().enumerate().for_each(|(idx, icon)| {
@@ -223,39 +209,48 @@ impl OnEvent for SettingsOptionsContent {
 // pub exposure_compensation: Option<f32>,      // EV
 // pub focus_mode: FocusMode,
 // pub focus_distance: Option<f32>,            // 0.0..1.0 lens position for manual
+
 // pub focus_point_of_interest: Option<(f32,f32)>, // normalized x,y for focus
+
 // pub white_balance_mode: WhiteBalanceMode,
 // pub white_balance_gains: Option<WhiteBalanceGains>,
+
 // pub torch_enabled: bool,
+
 // pub zoom_factor: Option<f32>,
 // pub frame_rate: Option<f32>,
 // pub resolution: Option<Resolution>,
 // pub hdr_enabled: bool,
+
 // pub stabilization_enabled: bool,
 // pub low_light_boost: Option<bool>,
 // pub scene_mode_hint: Option<SceneMode>,
+
 // pub brightness: Option<f32>,
 // pub contrast: Option<f32>,
+
 // pub saturation: Option<f32>,
+
 // pub sharpness: Option<f32>,
 // pub hue: Option<f32>,
 // pub noise_reduction: Option<f32>,
+
 // pub gamma: Option<f32>,
 // pub color_filter: Option<ColorFilter>,
 
 #[derive(Debug, Component)]
-pub struct SettingsDetails(Row, ExpandableText, Button);
+pub struct SettingsDetails(Row, ExpandableText, Option<Button>);
 
 impl OnEvent for SettingsDetails {}
 
 impl SettingsDetails {
-    pub fn new(ctx: &mut Context, label: &str) -> Self {
+    pub fn new(ctx: &mut Context, label: &str, has_button: bool) -> Self {
         let font_size = ctx.theme.fonts.size;
         let label = ExpandableText::new(ctx, label, TextStyle::Primary, font_size.h5, Align::Left, None);
-        let button = Button::new(ctx, None, None, Some("Reset"), None,
+        let button = has_button.then_some(Button::new(ctx, None, None, Some("Reset"), None,
             ButtonSize::Medium, ButtonWidth::Hug, ButtonStyle::Primary,
             ButtonState::Default, Offset::Center, |ctx: &mut Context| {ctx.trigger_event(ResetSetting)}, None
-        );
+        ));
         SettingsDetails(Row::new(6.0, Offset::End, Size::Fit, Padding::default()), label, button)
     }
 }
